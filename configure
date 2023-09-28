@@ -8,7 +8,7 @@ echo "Build Configuration"
 echo "-------------------"
 
 CFLAGS="-Wall -Wextra -pedantic -std=c89 -O3 -pipe -D_DEFAULT_SOURCE -Isrc/include"
-LDFLAGS="-lm -pthread"
+LIBS="-lm -pthread"
 
 # Set default args for all platforms
 SCRIPT_ARGS="--lib-rtstub=RtStub --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
@@ -84,11 +84,11 @@ done
 
 if [ -n "$TLS_IMPL" ]; then
     CFLAGS="${CFLAGS} -DTLS_IMPL=${TLS_IMPL}"
-    LDFLAGS="${LDFLAGS} ${TLS_LIBS}"
+    LIBS="${LIBS} ${TLS_LIBS}"
 fi
 
 CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' '-DLIB_VERSION=\"${LIB_VERSION}\"' ${DEBUG}"
-LDFLAGS="${LDFLAGS} ${LD_EXTRA}"
+LDFLAGS="${LIBS} ${LD_EXTRA}"
 
 #
 # Makefile generation
@@ -139,10 +139,11 @@ CFLAGS = ${CFLAGS}
 LDFLAGS = ${LDFLAGS}
 
 all: ${LIB_NAME} docs tools
-
 docs: $(find_docs "out/man/man3/Cytoplasm-")
-
 tools: $(find_tools "out/bin/")
+
+print-libs:
+${TAB}@echo ${LIBS}
 
 format:
 ${TAB}find . -name '*.c' | while IFS= read -r src; do \\
