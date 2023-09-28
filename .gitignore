@@ -1,0 +1,8 @@
+# Cytoplasm .gitignore
+
+build
+out
+*-leaked.txt
+*.orig
+
+Makefile
