@@ -7,8 +7,15 @@
 echo "Build Configuration"
 echo "-------------------"
 
-CFLAGS="-Wall -Wextra -pedantic -std=c89 -O3 -pipe -D_DEFAULT_SOURCE -Isrc/include"
+BUILD="build"
+OUT="out"
+SRC="src"
+INCLUDE="src/include"
+TOOLS="tools"
+
+CFLAGS="-Wall -Wextra -pedantic -std=c89 -O3 -pipe -D_DEFAULT_SOURCE -I${INCLUDE}"
 LIBS="-lm -pthread"
+
 
 # Set default args for all platforms
 SCRIPT_ARGS="--lib-rtstub=RtStub --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
@@ -94,39 +101,63 @@ LDFLAGS="${LIBS} ${LD_EXTRA}"
 # Makefile generation
 #
 
+collect() {
+	from="$1"
+	orig_ext="$2"
+	new_ext="$3"
+	prefix="$4"
+	exec="$5"
+
+	find "${from}" -name "*${orig_ext}" | while IFS= read -r src; do
+		src=$(echo "$src" | sed -e "s|^${from}||g")
+		obj=$(echo "$src" | sed -e "s|${orig_ext}\$|${new_ext}|g")
+
+		obj="${prefix}${obj}"
+		src="${from}${src}"
+
+		"${exec}" "${src}" "${obj}"
+	done
+}
+
+print_src() {
+	printf '%s ' "$1"
+}
+
+print_obj() {
+	printf '%s ' "$2"
+}
+
+compile_obj() {
+	src="$1"
+	obj="$2"
+
+	cc -I${INCLUDE} -MM -MT "${obj}" "${src}"
+	echo "${TAB}@mkdir -p $(dirname ${obj})"
+	echo "${TAB}\$(CC) \$(CFLAGS) -fPIC -c -o \"${obj}\" \"${src}\""
+}
+
+compile_bin() {
+	src="$1"
+	out="$2"
+
+    echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${OUT}/lib/${LIB_NAME}.o ${src}"
+    echo "${TAB}@mkdir -p ${OUT}/bin"
+    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" ${OUT}/lib/${LIB_NAME}.o -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}"
+}
+
+compile_doc() {
+	src="$1"
+	out="$2"
+
+	echo "${out}: ${OUT}/bin/hdoc ${src}"
+	echo "${TAB}@mkdir -p ${OUT}/man/man3"
+	echo "${TAB}${OUT}/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"${src}\" -o \"${out}\""
+}
+
 echo "Generating Makefile..."
 
-find_objs() {
-    obj_prefix="$1"
-    find src -name '*.c' | while IFS= read -r src; do
-        src=$(echo "$src" | cut -d '/' -f 2-)
-        obj=$(echo "$src" | sed -e 's/\.c$/.o/')
-        if [ "$(basename ${obj} .o)" != "${STUB}" ]; then
-            printf "${obj_prefix}${obj} "
-        fi
-    done
-}
-
-OBJS=$(find_objs "build/")
+OBJS=$(collect ${SRC}/ .c .o ${BUILD}/ print_obj)
 TAB=$(printf '\t')
-
-find_tools() {
-    tools_prefix="$1"
-    find tools -name '*.c' | while IFS= read -r src; do
-        src=$(echo "$src" | cut -d '/' -f 2-)
-        bin=$(basename "$src" .c)
-            printf "${tools_prefix}${bin} "
-    done
-}
-
-find_docs() {
-    prefix="$1"
-    find src/include -name '*.h' | while IFS= read -r src; do
-        src=$(echo "$src" | cut -d '/' -f 3-)
-        doc=$(echo "$src" | sed -e 's/\.h$/.3/')
-		printf "${prefix}${doc} "
-    done
-}
 
 cat << EOF > Makefile
 .POSIX:
@@ -139,8 +170,8 @@ CFLAGS = ${CFLAGS}
 LDFLAGS = ${LDFLAGS}
 
 all: ${LIB_NAME} docs tools
-docs: $(find_docs "out/man/man3/Cytoplasm-")
-tools: $(find_tools "out/bin/")
+docs: $(collect ${INCLUDE}/ .h .3 ${OUT}/man/man3/${LIB_NAME}- print_obj)
+tools: $(collect ${TOOLS}/ .c '' ${OUT}/bin/ print_obj)
 
 print-libs:
 ${TAB}@echo ${LIBS}
@@ -160,51 +191,27 @@ ${TAB}    diff -u -p - "LICENSE.txt" | \\
 ${TAB}    patch "\$\$src" | grep -v "^Hmm"; \\
 ${TAB}done
 
-${LIB_NAME}: out/lib/${LIB_NAME}.o out/lib/lib${LIB_NAME}.a out/lib/lib${LIB_NAME}.so
+${LIB_NAME}: ${OUT}/lib/${LIB_NAME}.o ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
 
 clean:
-${TAB}rm -r build out
+${TAB}rm -r "${BUILD}" "${OUT}"
 
-out/lib/${LIB_NAME}.o: build/${STUB}.o
-${TAB}@mkdir -p out/lib
-${TAB}cp build/${STUB}.o out/lib/${LIB_NAME}.o
+${OUT}/lib/${LIB_NAME}.o: ${BUILD}/${STUB}.o
+${TAB}@mkdir -p ${OUT}/lib
+${TAB}cp ${BUILD}/${STUB}.o ${OUT}/lib/${LIB_NAME}.o
 
-out/lib/lib${LIB_NAME}.a: ${OBJS}
-${TAB}@mkdir -p out/lib
-${TAB}\$(AR) rcs out/lib/lib${LIB_NAME}.a ${OBJS}
+${OUT}/lib/lib${LIB_NAME}.a: ${OBJS}
+${TAB}@mkdir -p ${OUT}/lib
+${TAB}\$(AR) rcs ${OUT}/lib/lib${LIB_NAME}.a ${OBJS}
 
-out/lib/lib${LIB_NAME}.so: ${OBJS}
-${TAB}@mkdir -p out/lib
-${TAB}\$(CC) -shared -o out/lib/lib${LIB_NAME}.so ${OBJS} ${LDFLAGS}
+${OUT}/lib/lib${LIB_NAME}.so: ${OBJS}
+${TAB}@mkdir -p ${OUT}/lib
+${TAB}\$(CC) -shared -o ${OUT}/lib/lib${LIB_NAME}.so ${OBJS} ${LDFLAGS}
+
+$(collect ${SRC}/ .c .o ${BUILD}/ compile_obj)
+$(collect ${TOOLS}/ .c '' ${OUT}/bin/ compile_bin)
+$(collect ${INCLUDE}/ .h .3 ${OUT}/man/man3/${LIB_NAME}- compile_doc)
 
 EOF
-
-find src -name '*.c' | while IFS= read -r src; do
-    src=$(echo "$src" | cut -d '/' -f 2-)
-    obj=$(echo "$src" | sed -e 's/\.c$/.o/')
-
-    src="src/${src}"
-    obj="build/${obj}"
-    cc -Isrc/include -MM -MT "${obj}" "${src}" >> Makefile
-    echo "${TAB}@mkdir -p $(dirname ${obj})" >> Makefile
-    echo "${TAB}\$(CC) \$(CFLAGS) -fPIC -c -o \"${obj}\" \"${src}\"" >> Makefile
-done
-
-find tools -name '*.c' | while IFS= read -r src; do
-    out="out/bin/$(basename "$src" .c)"
-
-    echo "${out}: out/lib/lib${LIB_NAME}.a out/lib/lib${LIB_NAME}.so out/lib/${LIB_NAME}.o ${src}" >> Makefile
-    echo "${TAB}@mkdir -p out/bin" >> Makefile
-    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" out/lib/${LIB_NAME}.o -Lout/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}" >> Makefile
-done
-
-find src/include -name '*.h' | while IFS= read -r header; do
-    src=$(echo "$header" | cut -d '/' -f 2-)
-    out=$(echo "$header" | cut -d '/' -f 3- | sed -e 's/\.h$/.3/')
-
-	echo "out/man/man3/Cytoplasm-${out}: out/bin/hdoc src/${src}" >> Makefile
-	echo "${TAB}@mkdir -p out/man/man3" >> Makefile
-	echo "${TAB}out/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"src/${src}\" -o \"out/man/man3/Cytoplasm-${out}\"" >> Makefile
-done
 
 echo "Done. Run 'make' to build ${LIB_NAME}."
