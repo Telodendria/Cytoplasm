@@ -37,11 +37,11 @@ echo "Ran with arguments: $SCRIPT_ARGS"
 for arg in $SCRIPT_ARGS; do
     case "$arg" in
         --with-openssl)
-            TLS_IMPL="OPENSSL"
+            TLS_IMPL="TLS_OPENSSL"
             TLS_LIBS="-lcrypto -lssl"
             ;;
         --with-libressl)
-            TLS_IMPL="LIBRESSL"
+            TLS_IMPL="TLS_LIBRESSL"
             TLS_LIBS="-ltls -lcrypto -lssl"
             ;;
         --disable-tls)
