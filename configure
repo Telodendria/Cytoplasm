@@ -18,7 +18,7 @@ LIBS="-lm -pthread"
 
 
 # Set default args for all platforms
-SCRIPT_ARGS="--lib-rtstub=RtStub --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
+SCRIPT_ARGS="--prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
 
 # Set platform specific args
 case "$(uname)" in
@@ -73,9 +73,6 @@ for arg in $SCRIPT_ARGS; do
             ;;
         --disable-debug)
             DEBUG=""
-            ;;
-        --lib-rtstub=*)
-            STUB=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
         --static)
             STATIC="-static -Wl,-static"
@@ -141,9 +138,9 @@ compile_bin() {
 	src="$1"
 	out="$2"
 
-    echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${OUT}/lib/${LIB_NAME}.o ${src}"
+    echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${src}"
     echo "${TAB}@mkdir -p ${OUT}/bin"
-    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" ${OUT}/lib/${LIB_NAME}.o -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}"
+    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}"
 }
 
 compile_doc() {
@@ -220,10 +217,9 @@ ${TAB}    diff -u -p - "LICENSE.txt" | \\
 ${TAB}    patch "\$\$src" | grep -v "^Hmm"; \\
 ${TAB}done
 
-${LIB_NAME}: ${OUT}/lib/${LIB_NAME}.o ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
+${LIB_NAME}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
 
 install: ${LIB_NAME}
-${TAB}install -D ${OUT}/lib/${LIB_NAME}.o \$(PREFIX)/lib/${LIB_NAME}.o
 ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.a \$(PREFIX)/lib/lib${LIB_NAME}.a
 ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.so \$(PREFIX)/lib/lib${LIB_NAME}.so
 $(collect ${INCLUDE}/ '' '' \$\(PREFIX\)/include/${LIB_NAME}/ install_out)
@@ -231,7 +227,6 @@ $(collect ${INCLUDE}/ .h .3 \$\(PREFIX\)/man/man3/${LIB_NAME}- install_man)
 $(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ install_tool)
 
 uninstall:
-${TAB}rm -r \$(PREFIX)/lib/${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/lib/lib${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/include/${LIB_NAME}
 ${TAB}rm -r \$(PREFIX)/man/man3/${LIB_NAME}-*
@@ -239,10 +234,6 @@ $(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ uninstall_out)
 
 clean:
 ${TAB}rm -r "${BUILD}" "${OUT}"
-
-${OUT}/lib/${LIB_NAME}.o: ${BUILD}/${STUB}.o
-${TAB}@mkdir -p ${OUT}/lib
-${TAB}cp ${BUILD}/${STUB}.o ${OUT}/lib/${LIB_NAME}.o
 
 ${OUT}/lib/lib${LIB_NAME}.a: ${OBJS}
 ${TAB}@mkdir -p ${OUT}/lib
