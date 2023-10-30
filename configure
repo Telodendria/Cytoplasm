@@ -45,6 +45,7 @@ for arg in $SCRIPT_ARGS; do
             TLS_LIBS="-ltls -lcrypto -lssl"
             ;;
         --disable-tls)
+            TLS_IMPL=""
             TLS_LIBS=""
             ;;
         --prefix=*)
