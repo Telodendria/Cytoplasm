@@ -169,6 +169,13 @@ install_man() {
 	echo "${TAB}install -D \"$src\" \"$out\""
 }
 
+install_tool() {
+    src=${OUT}/bin/$(basename "$1" .c)
+    out="$2"
+
+    echo "${TAB}install -D \"$src\" \"$out\""
+}
+
 uninstall_out() {
 	src="$1"
 	out="$2"
@@ -221,12 +228,14 @@ ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.a \$(PREFIX)/lib/lib${LIB_NAME}.a
 ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.so \$(PREFIX)/lib/lib${LIB_NAME}.so
 $(collect ${INCLUDE}/ '' '' \$\(PREFIX\)/include/${LIB_NAME}/ install_out)
 $(collect ${INCLUDE}/ .h .3 \$\(PREFIX\)/man/man3/${LIB_NAME}- install_man)
+$(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ install_tool)
 
 uninstall:
 ${TAB}rm -r \$(PREFIX)/lib/${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/lib/lib${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/include/${LIB_NAME}
 ${TAB}rm -r \$(PREFIX)/man/man3/${LIB_NAME}-*
+$(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ uninstall_out)
 
 clean:
 ${TAB}rm -r "${BUILD}" "${OUT}"
