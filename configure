@@ -147,9 +147,13 @@ compile_doc() {
 	src="$1"
 	out="$2"
 
+    if [ -z "${STATIC}" ]; then
+        pref="LD_LIBRARY_PATH=${OUT}/lib "
+    fi
+
 	echo "${out}: ${OUT}/bin/hdoc ${src}"
 	echo "${TAB}@mkdir -p ${OUT}/man/man3"
-	echo "${TAB}${OUT}/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"${src}\" -o \"${out}\""
+	echo "${TAB}${pref}${OUT}/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"${src}\" -o \"${out}\""
 }
 
 install_out() {
