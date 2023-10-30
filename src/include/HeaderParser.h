@@ -41,8 +41,8 @@
  * for example usage of this parser.
  */
 
-#include <Stream.h>
-#include <Array.h>
+#include "Stream.h"
+#include "Array.h"
 
 #define HEADER_EXPR_MAX 4096
 

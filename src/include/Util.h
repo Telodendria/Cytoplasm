@@ -42,8 +42,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include <Stream.h>
-#include <UInt64.h>
+#include "Stream.h"
+#include "UInt64.h"
 
 /**
  * Get the current timestamp in milliseconds since the Unix epoch. This

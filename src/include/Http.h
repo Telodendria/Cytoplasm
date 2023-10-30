@@ -42,8 +42,8 @@
 
 #include <stdio.h>
 
-#include <HashMap.h>
-#include <Stream.h>
+#include "HashMap.h"
+#include "Stream.h"
 
 #define HTTP_FLAG_NONE 0
 #define HTTP_FLAG_TLS (1 << 0)

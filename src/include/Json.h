@@ -68,10 +68,10 @@
  * behavior.
  */
 
-#include <HashMap.h>
-#include <Array.h>
-#include <Stream.h>
-#include <Int64.h>
+#include "HashMap.h"
+#include "Array.h"
+#include "Stream.h"
+#include "Int64.h"
 
 #include <stdio.h>
 #include <stddef.h>

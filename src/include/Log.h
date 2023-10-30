@@ -42,7 +42,7 @@
 #include <stddef.h>
 #include <syslog.h>
 
-#include <Stream.h>
+#include "Stream.h"
 
 #define LOG_FLAG_COLOR  (1 << 0)
 #define LOG_FLAG_SYSLOG (1 << 1)

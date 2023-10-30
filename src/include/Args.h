@@ -38,7 +38,7 @@
  * provide the standard command line interface.
  */
 
-#include <Array.h>
+#include "Array.h"
 
 /**
  * All state is stored in this structure, instead of global

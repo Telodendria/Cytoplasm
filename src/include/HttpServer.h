@@ -46,12 +46,11 @@
  * closely resembles Java.
  */
 
-#include <Http.h>
-
 #include <stdio.h>
 
-#include <HashMap.h>
-#include <Stream.h>
+#include "Http.h"
+#include "HashMap.h"
+#include "Stream.h"
 
 /**
  * The functions on this API operate on an opaque structure.

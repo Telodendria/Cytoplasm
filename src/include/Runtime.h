@@ -37,8 +37,6 @@
  * the runtime stub needs to know their definitions.
  */
 
-#include <Array.h>
-
 /**
  * Write a memory report to a file in the current directory, using
  * the provided program arguments, including the program name that

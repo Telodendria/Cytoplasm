@@ -38,8 +38,8 @@
 
 #include <stddef.h>
 
-#include <HashMap.h>
-#include <Array.h>
+#include "HashMap.h"
+#include "Array.h"
 
 /**
  * All functions in this API operate on a database structure that is

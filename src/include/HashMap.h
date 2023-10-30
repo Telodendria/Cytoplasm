@@ -46,7 +46,7 @@
 
 #include <stddef.h>
 
-#include <Array.h>
+#include "Array.h"
 
 /**
  * These functions operate on an opaque structure, which the caller

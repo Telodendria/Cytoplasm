@@ -46,7 +46,7 @@
  * .El
  */
 
-#include <Stream.h>
+#include "Stream.h"
 
 #define TLS_LIBRESSL 2
 #define TLS_OPENSSL 3

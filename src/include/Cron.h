@@ -56,7 +56,7 @@
  * by any means.
  */
 
-#include <Int.h>
+#include "Int.h"
 
 /**
  * All functions defined here operate on a structure opaque to the

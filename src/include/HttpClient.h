@@ -39,8 +39,8 @@
 
 #include <stdio.h>
 
-#include <HashMap.h>
-#include <Http.h>
+#include "HashMap.h"
+#include "Http.h"
 
 /**
  * A server response is represented by a client context. It is

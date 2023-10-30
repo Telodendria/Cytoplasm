@@ -64,8 +64,8 @@
  * @ignore-typedefs
  */
 
-#include <Int.h>
-#include <UInt64.h>
+#include "Int.h"
+#include "UInt64.h"
 
 #include <stddef.h>
 
