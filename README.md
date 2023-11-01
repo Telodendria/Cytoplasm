@@ -1,4 +1,5 @@
-# Cytoplasm (libcytoplasm)
+<p align="center"><img src="https://telodendria.io/assets/Cytoplasm.png"></p>
+<h1 align="center">Cytoplasm (<code>libcytoplasm</code>)</h1>
 
 Cytoplasm is a general-purpose C library for creating high-level (particularly networked and multi-threaded) C applications. It allows applications to take advantage of the speed, flexibility, and simplicity of the C programming language, while providing helpful code to allow applications to perform various complex tasks with minimal effort. Cytoplasm provides high-level data structures, a basic logging facility, an HTTP client and server, and more. It also reports memory leaks, which can aid in debugging.
 
@@ -14,16 +15,27 @@ The name "Cytoplasm" was chosen for a few reasons. It plays off the precedent se
 
 Cytoplasm also starts with a C, which I think is a nice touch for C libraries. It's also fun to say and unique enough that searching for "libcytoplasm" should bring you to this project and not some other one.
 
-## Building
+## Requirements
 
-If your operating system or software distribution provides a pre-built package of Cytoplasm, you should prefer to use that instead of building it from source.
+Cytoplasm makes the following assumptions about the underlying hardware:
 
-Cytoplasm aims to have zero dependencies beyond what is mandated by POSIX. You only need the standard math and pthread libraries to build it. TLS support can optionally be enabled with the configuration script. The supported TLS implementations are as follows:
+- It has words sizes that are powers of 2, and a native 32-bit integer type exists.
+- Integers are represented using two's compliment for negatives.
+
+The ANSI C standard requires an integer type of at least 32 bits, but does not require any more. If Cytoplasm is built on 32-bit platforms that don't provide a native 64-bit integer type, Cytoplasm emulates 64-bit integers. This can make it more portable.
+
+Cytoplasm aims to have zero software dependencies beyond what is mandated by POSIX. You only need the standard math and pthread libraries to build it. TLS support can optionally be enabled with the configuration script. The supported TLS implementations are as follows:
 
 - OpenSSL
 - LibreSSL
 
-If TLS support is not enabled, all APIs that use it should fall back to non-TLS behavior in a sensible manner. For example, if TLS support is not enabled, then the HTTP client API will simply return an error if a TLS connection is requested.  Cytoplasm uses the standard C library build procedure. Just run these commands:
+If TLS support is not enabled, all APIs that use it should fall back to non-TLS behavior in a sensible manner. For example, if TLS support is not enabled, then the HTTP client API will simply return an error if a TLS connection is requested.
+
+## Building
+
+If your operating system or software distribution provides a pre-built package of Cytoplasm, you should prefer to use that instead of building it from source.
+
+Cytoplasm uses the standard C library build procedure. Just run these commands:
 
 ```
 ./configure
@@ -42,6 +54,40 @@ This will produce the following out/ directory:
 ```
 
 You can also run `make install` as `root` to install Cytoplasm to the system. This will install the libraries, tools, and `man` pages.
+
+The `configure` script has a number of optional flags, which are as follows:
+
+- `--with-(openssl|libressl)`: Select the TLS implementation to use. OpenSSL is selected by default.
+- `--disable-tls`: Disable TLS altogether.
+- `--prefix=<path>`: Set the install prefix to set by default in the `Makefile`. This defaults to `/usr/local`, which should be appropriate for most Unix-like systems.
+- `--(enable|disable)-ld-extra`: Control whether or not to enable additional linking flags that create a more optimized binary. For large compilers such as GCC and Clang, these flags should be enabled. However, if you are using a small or more obscure compiler, then these flags may not be supported, so you can disable them with this option.
+- `--(enable|disable)-debug`: Control whether or not to enable debug mode. This sets the optimization level to 0 and builds with debug symbols. Useful for running with a debugger.
+- `--static` and `--no-static`: Controls whether static binaries for tools are built by default. On BSD systems, `--static` is perfectly acceptable, but on GNU systems, `--no-static` is often desirable to silence warnings about static binaries emitted by the GNU linker.
+
+Cytoplasm can be customized with the following options:
+
+- `--lib-name=<name>`: The output name of the library. This defaults to `Cytoplasm` and should in most cases not be changed.
+- `--lib-version=<version>`: The version string to embed in the library binaries. This can be used to indicate build customizations or non-release versions of Cytoplasm.
+
+The following recipes are available in the generated `Makefile`:
+
+- `all`: This is the default target. It builds everything.
+- `Cytoplasm`: Build the `libCytoplasm.(so|a)` binaries. If you specified an alternative `--lib-name`, then this target will be named after that.
+- `docs`: Generate the header documentation as `man` pages.
+- `tools`: Build the supplemental tools which may be useful for development.
+- `clean`: Remove the build and output directories. Cytoplasm builds are out-of-tree, which greatly simplifies this recipe compared to in-tree builds.
+
+If you're developing Cytoplasm, these recipes may also be helpful:
+
+- `format`: Format the source code using `indent`. This may require a BSD `indent` because last time I tried GNU `indent`, it didn't like the flags in `indent.pro`. Your mileage may vary.
+- `license`: Update the license headers in all source code files with the contents of the `LICENSE.txt`.
+
+To install Telodendria to your system, the following recipes are available:
+
+- `install`: This installs Cytoplasm under the prefix set with `./configure --prefix=<dir>` or with `make PREFIX=<dir>`. By default, the `make` `PREFIX` is set to whatever was set with `configure --prefix`.
+- `uninstall`: Uninstall Cytoplasm from the same prefix as specified above.
+
+After a build, you can find the object files in `build/` and the output binaries in `out/lib/`.
 
 ## Usage
 
@@ -63,7 +109,7 @@ If this file is `Hello.c`, then you can compile it by doing this:
 
 	$ cc -o hello Hello.c -lCytoplasm
 
-The full form of Main() expected by the stub is as follows:
+The full form of `Main()` expected by the stub is as follows:
 
 ```c
     int Main(Array *args, HashMap *env);
@@ -72,3 +118,9 @@ The full form of Main() expected by the stub is as follows:
 The first argument is a Cytoplasm array of the command line arguments, and the second is a Cytoplasm hash map of environment variables. Most linkers will let programs omit the `env` argument, or both arguments if you don't need either. The return value of `Main()` is returned to the operating system, as would be expected.
 
 Note that both arguments to Main may be treated like any other Cytoplasm array or hash map. However, do not invoke `ArrayFree()` or `HashMapFree()` on the passed pointers, because memory is cleaned up after `Main()` returns.
+
+## License
+
+All of the code and documentation for Cytoplasm is licensed under the same license as Telodendria itself. Please refer to [Telodendria &rightarrow; License](/Telodendria/Telodendria#license) for details.
+
+The Cytoplasm logo was designed by [Tobskep](https://tobskep.com) and is licensed under the [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/) license.
