@@ -18,7 +18,7 @@ LIBS="-lm -pthread"
 
 
 # Set default args for all platforms
-SCRIPT_ARGS="--cc=cc --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
+SCRIPT_ARGS="--cc=cc --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.1 --static $@"
 
 # Set platform specific args
 case "$(uname)" in
