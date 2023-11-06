@@ -309,22 +309,23 @@ Main(Array * args)
             ArrayAdd(requiredTypes, StrDuplicate(type));
         }
 
-        typeFieldsVal = HashMapGet(typeObj, "fields");
-        if (JsonValueType(typeFieldsVal) != JSON_OBJECT)
-        {
-            Log(LOG_ERR, "Validation error: 'types.%s.fields' must be an object.", type);
-            goto finish;
-        }
-
-        typeFields = JsonValueAsObject(typeFieldsVal);
-
         if (StrEquals(typeType, "struct"))
         {
+            typeFieldsVal = HashMapGet(typeObj, "fields");
+            if (JsonValueType(typeFieldsVal) != JSON_OBJECT)
+            {
+                Log(LOG_ERR, "Validation error: 'types.%s.fields' must be an object.", type);
+                goto finish;
+            }
+
+            typeFields = JsonValueAsObject(typeFieldsVal);
+
             while (HashMapIterate(typeFields, &fieldName, (void **) &fieldVal))
             {
                 char *fieldType;
                 int isArrType = 0;
                 JsonValue *requiredVal;
+                JsonValue *ignoreVal;
 
                 if (JsonValueType(fieldVal) != JSON_OBJECT)
                 {
@@ -379,10 +380,26 @@ Main(Array * args)
                     Log(LOG_ERR, "Validation error: 'types.%s.fields.%s.required' must be a boolean.", type, fieldName);
                     goto finish;
                 }
+
+                ignoreVal = HashMapGet(fieldObj, "ignore");
+                if (ignoreVal && JsonValueType(ignoreVal) != JSON_BOOLEAN)
+                {
+                    Log(LOG_ERR, "Validation error: 'types.%s.fields.%s.ignore' must be a boolean.", type, fieldName);
+                    goto finish;
+                }
             }
         }
         else if (StrEquals(typeType, "enum"))
         {
+            typeFieldsVal = HashMapGet(typeObj, "fields");
+            if (JsonValueType(typeFieldsVal) != JSON_OBJECT)
+            {
+                Log(LOG_ERR, "Validation error: 'types.%s.fields' must be an object.", type);
+                goto finish;
+            }
+
+            typeFields = JsonValueAsObject(typeFieldsVal);
+
             while (HashMapIterate(typeFields, &fieldName, (void **) &fieldVal))
             {
                 char *name;
@@ -403,16 +420,17 @@ Main(Array * args)
                 }
             }
         }
+        else if (StrEquals(typeType, "extern"))
+        {
+            /*
+             * No code will be generated for this type. We simply assume that it exists.
+             */
+        }
         else
         {
             Log(LOG_ERR, "Validation error: 'types.%s.type' must be 'struct' or 'enum'.", type);
             goto finish;
         }
-        /*
-         * TODO: Add "extern" type that doesn't actually generate any code,
-         * but trusts the user that it has been generated somewhere else. This
-         * is effectively "importing" types.
-         */
     }
 
     sortedNodes = GraphTopologicalSort(dependencyGraph, &sortedNodesLen);
@@ -471,6 +489,12 @@ Main(Array * args)
         }
 
         typeType = JsonValueAsString(JsonGet(types, 2, type, "type"));
+
+        if (StrEquals(typeType, "extern"))
+        {
+            continue;
+        }
+
         fields = JsonValueAsObject(JsonGet(types, 2, type, "fields"));
 
         StreamPrintf(headerFile, "typedef %s %s\n{\n", typeType, type);
@@ -615,10 +639,17 @@ Main(Array * args)
             {
                 char *key = ArrayGet(keys, i);
                 int required = JsonValueAsBoolean(JsonGet(fields, 2, key, "required"));
+                int ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
                 char *fieldType = JsonValueAsString(JsonGet(fields, 2, key, "type"));
                 int isEnum = StrEquals(JsonValueAsString(JsonGet(types, 2, fieldType, "type")), "enum");
                 JsonType jsonType = isEnum ? JSON_STRING : TypeToJsonType(fieldType);
                 char *jsonTypeStr = JsonTypeToStr(jsonType);
+
+                if (ignore)
+                {
+                    StreamPrintf(implFile, "    /* Ignored field: %s */\n\n", key);
+                    continue;
+                }
 
                 StreamPrintf(implFile, "    val = HashMapGet(json, \"%s\");\n", Trim('_', key));
 
@@ -847,6 +878,13 @@ Main(Array * args)
                 char *key = ArrayGet(keys, i);
                 char *fieldType = JsonValueAsString(JsonGet(fields, 2, key, "type"));
                 int isEnum = StrEquals(JsonValueAsString(JsonGet(types, 2, fieldType, "type")), "enum");
+                int ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
+
+                if (ignore)
+                {
+                    StreamPrintf(implFile, "    /* Ignored field: %s */\n\n", key);
+                    continue;
+                }
 
                 if (StrEquals(fieldType, "array"))
                 {
@@ -1022,8 +1060,9 @@ Main(Array * args)
                 else
                 {
                     /* Ignore primitives but call the appropriate free
-                     * method on declared types */
-                    if (!isEnum && HashMapGet(types, fieldType))
+                     * method on declared types that aren't "extern". */
+                    char *fieldTypeType = JsonValueAsString(JsonGet(types, 2, fieldType, "type"));
+                    if (!isEnum && HashMapGet(types, fieldType) && !StrEquals(fieldTypeType, "extern"))
                     {
                         StreamPrintf(implFile, "    %sFree(&val->%s);\n", fieldType, key);
                     }

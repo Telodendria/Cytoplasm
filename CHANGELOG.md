@@ -5,6 +5,16 @@ Cytoplasm. It is intended to be updated with every commit that makes a user-faci
 change worth reporting in the change log. As such, it changes frequently between
 releases. Final change log entries are published as [Releases](releases).
 
+## v0.4.1
+
+### Tools
+
+#### `j2s`
+
+- Added an option to allow additional fields in structures and ignore them in
+encoding and decoding. Note that additional fields are totally untouched&mdash;they
+are not even initialized to a default value.
+
 ## v0.4.0
 
 **Released on November 1, 2023**
