@@ -7,13 +7,12 @@ releases. Final change log entries are published as [Releases](releases).
 
 ## v0.4.1
 
-### Tools
+### New Features
 
-#### `j2s`
-
-- Added an option to allow additional fields in structures and ignore them in
+- Added an option to `j2s` to allow additional fields in structures and ignore them in
 encoding and decoding. Note that additional fields are totally untouched&mdash;they
 are not even initialized to a default value.
+- Added `JsonMerge()` to the JSON API to merge two JSON objects together.
 
 ## v0.4.0
 
