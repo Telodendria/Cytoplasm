@@ -320,4 +320,13 @@ extern JsonValue * JsonGet(HashMap *, size_t,...);
  */
 extern JsonValue * JsonSet(HashMap *, JsonValue *, size_t,...);
 
+/**
+ * Recursively merge two JSON objects. The second object is merged
+ * on top of the first; any keys present in the first object that are
+ * also present in the second object are replaced with those in the
+ * second object, and any keys present in the second object that are
+ * not present in the first object are copied to the first object.
+ */
+extern void JsonMerge(HashMap *, HashMap *);
+
 #endif                             /* CYTOPLASM_JSON_H */

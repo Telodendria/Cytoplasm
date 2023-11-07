@@ -1433,3 +1433,32 @@ finish:
     va_end(argp);
     return val;
 }
+
+void
+JsonMerge(HashMap *obj1, HashMap *obj2)
+{
+    char *key;
+    JsonValue *val2;
+
+    while (HashMapIterate(obj2, &key, (void **) &val2))
+    {
+        JsonValue *val1 = HashMapGet(obj1, key);
+
+        if (val1)
+        {
+            if (JsonValueType(val1) == JsonValueType(val2) &&
+                JsonValueType(val1) == JSON_OBJECT)
+            {
+                JsonMerge(JsonValueAsObject(val1), JsonValueAsObject(val2));
+            }
+            else
+            {
+                JsonValueFree(HashMapSet(obj1, key, JsonValueDuplicate(val2)));
+            }
+        }
+        else
+        {
+            HashMapSet(obj1, key, JsonValueDuplicate(val2));
+        }
+    }
+}
