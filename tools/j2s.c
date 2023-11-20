@@ -660,11 +660,15 @@ Main(Array * args)
                 StreamPrintf(implFile, "        }\n\n");
                 if (StrEquals(fieldType, "array"))
                 {
-                    StreamPrintf(implFile, "        out->%s = JsonValueAsArray(JsonValueDuplicate(val));\n", key);
+                    StreamPrintf(implFile, "        val = JsonValueDuplicate(val);\n");
+                    StreamPrintf(implFile, "        out->%s = JsonValueAsArray(val);\n", key);
+                    StreamPrintf(implFile, "        Free(val); /* Not JsonValueFree() because we want the inner value. */\n");
                 }
                 else if (StrEquals(fieldType, "object"))
                 {
-                    StreamPrintf(implFile, "        out->%s = JsonValueAsObject(JsonValueDuplicate(val));\n", key);
+                    StreamPrintf(implFile, "        val = JsonValueDuplicate(val);\n");
+                    StreamPrintf(implFile, "        out->%s = JsonValueAsObject(val);\n", key);
+                    StreamPrintf(implFile, "        Free(val); /* Not JsonValueFree() because we want the inner value. */\n");
                 }
                 else if (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']')
                 {
