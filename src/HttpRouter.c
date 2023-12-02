@@ -23,6 +23,7 @@
  */
 #include <HttpRouter.h>
 
+#include <Http.h>
 #include <Memory.h>
 #include <HashMap.h>
 #include <Str.h>
@@ -228,12 +229,15 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
 
             regmatch_t pmatch[REG_MAX_SUB];
 
+            pathPart = HttpUrlDecode(pathPart);
+
             i = 0;
 
             while (HashMapIterateReentrant(node->children, &key, (void **) &val, &i))
             {
                 if (regexec(&val->regex, pathPart, REG_MAX_SUB, pmatch, 0) == 0)
                 {
+                    Free(pathPart);
                     break;
                 }
 
@@ -243,6 +247,7 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
             if (!val)
             {
                 exec = NULL;
+                Free(pathPart);
                 break;
             }
 
@@ -263,12 +268,14 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
                     substr = StrSubstr(pathPart, cpmatch.rm_so, cpmatch.rm_eo);
                     if (pmatch[i].rm_so == -1)
                     {
+                        Free(pathPart);
                         break;
                     }
 
                     ArrayAdd(matches, substr);
                 }
             }
+            Free(pathPart);
         }
         Free(path);
     }
