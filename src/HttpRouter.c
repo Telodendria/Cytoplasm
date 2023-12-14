@@ -237,7 +237,6 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
             {
                 if (regexec(&val->regex, pathPart, REG_MAX_SUB, pmatch, 0) == 0)
                 {
-                    Free(pathPart);
                     break;
                 }
 
