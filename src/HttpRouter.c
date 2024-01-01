@@ -267,7 +267,6 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
                     substr = StrSubstr(pathPart, cpmatch.rm_so, cpmatch.rm_eo);
                     if (pmatch[i].rm_so == -1)
                     {
-                        Free(pathPart);
                         break;
                     }
 
