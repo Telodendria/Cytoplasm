@@ -184,22 +184,28 @@ compile_doc() {
 install_out() {
 	src="$1"
 	out="$2"
+	dir=$(dirname "$out")
 
-	echo "${TAB}install -D \"$src\" \"$out\""
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
 }
 
 install_man() {
 	src="${OUT}/man/man3/${LIB_NAME}-$(basename $1 .h).3"
 	out="$2"
+    dir=$(dirname "$out")
 
-	echo "${TAB}install -D \"$src\" \"$out\""
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
 }
 
 install_tool() {
     src=${OUT}/bin/$(basename "$1" .c)
     out="$2"
+    dir=$(dirname "$out")
 
-    echo "${TAB}install -D \"$src\" \"$out\""
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
 }
 
 uninstall_out() {
