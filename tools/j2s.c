@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #include <Log.h>
 #include <Array.h>
@@ -323,7 +324,7 @@ Main(Array * args)
             while (HashMapIterate(typeFields, &fieldName, (void **) &fieldVal))
             {
                 char *fieldType;
-                int isArrType = 0;
+                bool isArrType = false;
                 JsonValue *requiredVal;
                 JsonValue *ignoreVal;
 
@@ -346,7 +347,7 @@ Main(Array * args)
                 {
                     fieldType++;
                     fieldType[strlen(fieldType) - 1] = '\0';
-                    isArrType = 1;
+                    isArrType = true;
                 }
 
                 if (!StrEquals(fieldType, "object") &&
@@ -459,9 +460,11 @@ Main(Array * args)
     StreamPrintf(headerFile, "#ifndef %s\n", guard);
     StreamPrintf(headerFile, "#define %s\n\n", guard);
 
+    StreamPrintf(headerFile, "#include <stdint.h>\n");
+    StreamPrintf(headerFile, "#include <stdbool.h>\n");
+
     StreamPrintf(headerFile, "#include <Cytoplasm/Array.h>\n");
     StreamPrintf(headerFile, "#include <Cytoplasm/HashMap.h>\n");
-    StreamPrintf(headerFile, "#include <Cytoplasm/Int64.h>\n");
 
     StreamPutc(headerFile, '\n');
 
@@ -516,11 +519,11 @@ Main(Array * args)
                 }
                 else if (StrEquals(fieldType, "integer"))
                 {
-                    cType = "Int64";
+                    cType = "int64_t";
                 }
                 else if (StrEquals(fieldType, "boolean"))
                 {
-                    cType = "int";
+                    cType = "bool";
                 }
                 else if (StrEquals(fieldType, "float"))
                 {
@@ -622,8 +625,8 @@ Main(Array * args)
 
         if (StrEquals(typeType, "struct"))
         {
-            StreamPrintf(headerFile, "extern int %sFromJson(HashMap *, %s *, char **);\n", type, type);
-            StreamPrintf(implFile, "int\n%sFromJson(HashMap *json, %s *out, char **errp)\n{\n", type, type);
+            StreamPrintf(headerFile, "extern bool %sFromJson(HashMap *, %s *, char **);\n", type, type);
+            StreamPrintf(implFile, "bool\n%sFromJson(HashMap *json, %s *out, char **errp)\n{\n", type, type);
             StreamPrintf(implFile, "    JsonValue *val;\n");
             StreamPrintf(implFile, "    int enumParseRes;\n");
             StreamPrintf(implFile, "\n");
@@ -632,14 +635,14 @@ Main(Array * args)
             StreamPrintf(implFile, "    if (!json | !out)\n"
                          "    {\n"
                          "        *errp = \"Invalid pointers passed to %sFromJson()\";\n"
-                         "        return 0;\n"
+                         "        return false;\n"
                          "    }\n\n"
                          ,type);
             for (i = 0; i < ArraySize(keys); i++)
             {
                 char *key = ArrayGet(keys, i);
-                int required = JsonValueAsBoolean(JsonGet(fields, 2, key, "required"));
-                int ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
+                bool required = JsonValueAsBoolean(JsonGet(fields, 2, key, "required"));
+                bool ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
                 char *fieldType = JsonValueAsString(JsonGet(fields, 2, key, "type"));
                 int isEnum = StrEquals(JsonValueAsString(JsonGet(types, 2, fieldType, "type")), "enum");
                 JsonType jsonType = isEnum ? JSON_STRING : TypeToJsonType(fieldType);
@@ -656,7 +659,7 @@ Main(Array * args)
                 StreamPrintf(implFile, "    if (val)\n    {\n");
                 StreamPrintf(implFile, "        if (JsonValueType(val) != %s)\n        {\n", jsonTypeStr);
                 StreamPrintf(implFile, "            *errp = \"%s.%s must be of type %s.\";\n", type, Trim('_', key), fieldType);
-                StreamPrintf(implFile, "            return 0;\n");
+                StreamPrintf(implFile, "            return false;\n");
                 StreamPrintf(implFile, "        }\n\n");
                 if (StrEquals(fieldType, "array"))
                 {
@@ -681,7 +684,7 @@ Main(Array * args)
                     StreamPrintf(implFile, "        if (!out->%s)\n", key);
                     StreamPrintf(implFile, "        {\n");
                     StreamPrintf(implFile, "            *errp = \"Failed to allocate memory for %s.%s.\";\n", type, key);
-                    StreamPrintf(implFile, "            return 0;\n");
+                    StreamPrintf(implFile, "            return false;\n");
                     StreamPrintf(implFile, "        }\n");
                     StreamPrintf(implFile, "        else\n");
                     StreamPrintf(implFile, "        {\n");
@@ -700,7 +703,7 @@ Main(Array * args)
 
                         if (StrEquals(fieldType, "integer"))
                         {
-                            cType = "Int64";
+                            cType = "int64_t";
                         }
                         else if (StrEquals(fieldType, "float"))
                         {
@@ -708,7 +711,7 @@ Main(Array * args)
                         }
                         else if (StrEquals(fieldType, "boolean"))
                         {
-                            cType = "int";
+                            cType = "bool";
                         }
                         else
                         {
@@ -722,13 +725,13 @@ Main(Array * args)
                         StreamPrintf(implFile, "                if (JsonValueType(v) != %s)\n", JsonTypeToStr(jsonType));
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"%s.%s[] contains an invalid value.\";\n", type, key);
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                ref = Malloc(sizeof(%s));\n", cType);
                         StreamPrintf(implFile, "                if (!ref)\n");
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"Unable to allocate memory for array value.\";\n");
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                *ref = JsonValueAs%s(v);\n", fieldType);
                         StreamPrintf(implFile, "                ArrayAdd(out->%s, ref);\n", key);
@@ -740,7 +743,7 @@ Main(Array * args)
                         StreamPrintf(implFile, "                if (JsonValueType(v) != %s)\n", JsonTypeToStr(jsonType));
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"%s.%s[] contains an invalid value.\";\n", type, key);
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                ArrayAdd(out->%s, StrDuplicate(JsonValueAsString(v)));\n", key);
                     }
@@ -749,7 +752,7 @@ Main(Array * args)
                         StreamPrintf(implFile, "                if (JsonValueType(v) != %s)\n", JsonTypeToStr(jsonType));
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"%s.%s[] contains an invalid value.\";\n", type, key);
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                ArrayAdd(out->%s, JsonDuplicate(JsonValueAsObject(v)));\n", key);
                     }
@@ -763,13 +766,13 @@ Main(Array * args)
                         StreamPrintf(implFile, "                if (JsonValueType(v) != %s)\n", JsonTypeToStr(jsonType));
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"%s.%s[] contains an invalid value.\";\n", type, key);
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                parsed = Malloc(sizeof(%s));\n", fieldType);
                         StreamPrintf(implFile, "                if (!parsed)\n");
                         StreamPrintf(implFile, "                {\n");
                         StreamPrintf(implFile, "                    *errp = \"Unable to allocate memory for array value.\";\n");
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         if (isEnum)
                         {
@@ -787,7 +790,7 @@ Main(Array * args)
                             StreamPrintf(implFile, "                    %sFree(parsed);\n", fieldType);
                         }
                         StreamPrintf(implFile, "                    Free(parsed);\n");
-                        StreamPrintf(implFile, "                    return 0;\n");
+                        StreamPrintf(implFile, "                    return false;\n");
                         StreamPrintf(implFile, "                }\n");
                         StreamPrintf(implFile, "                ArrayAdd(out->%s, parsed);\n", key);
                     }
@@ -800,7 +803,7 @@ Main(Array * args)
                 else if (jsonType == JSON_OBJECT)
                 {
                     StreamPrintf(implFile, "        if (!%sFromJson(JsonValueAsObject(val), &out->%s, errp))\n        {\n", fieldType, key);
-                    StreamPrintf(implFile, "            return 0;\n");
+                    StreamPrintf(implFile, "            return false;\n");
                     StreamPrintf(implFile, "        }\n");
                 }
                 else
@@ -835,7 +838,7 @@ Main(Array * args)
                             StreamPrintf(implFile, "        if (enumParseRes == -1)\n", key);
                             StreamPrintf(implFile, "        {\n");
                             StreamPrintf(implFile, "            *errp = \"Invalid value for %s.%s.\";\n", type, key);
-                            StreamPrintf(implFile, "            return 0;\n");
+                            StreamPrintf(implFile, "            return false;\n");
                             StreamPrintf(implFile, "        }\n");
                             StreamPrintf(implFile, "        out->%s = enumParseRes;\n", key);
                         }
@@ -855,13 +858,13 @@ Main(Array * args)
                 {
                     StreamPrintf(implFile, "    else\n    {\n");
                     StreamPrintf(implFile, "        *errp = \"%s.%s is required.\";\n", type, key);
-                    StreamPrintf(implFile, "        return 0;\n");
+                    StreamPrintf(implFile, "        return false;\n");
                     StreamPrintf(implFile, "    }\n");
                 }
 
                 StreamPutc(implFile, '\n');
             }
-            StreamPrintf(implFile, "    return 1;\n");
+            StreamPrintf(implFile, "    return true;\n");
             StreamPrintf(implFile, "}\n\n");
 
             StreamPrintf(headerFile, "extern HashMap * %sToJson(%s *);\n", type, type);
@@ -881,8 +884,8 @@ Main(Array * args)
             {
                 char *key = ArrayGet(keys, i);
                 char *fieldType = JsonValueAsString(JsonGet(fields, 2, key, "type"));
-                int isEnum = StrEquals(JsonValueAsString(JsonGet(types, 2, fieldType, "type")), "enum");
-                int ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
+                bool isEnum = StrEquals(JsonValueAsString(JsonGet(types, 2, fieldType, "type")), "enum");
+                bool ignore = JsonValueAsBoolean(JsonGet(fields, 2, key, "ignore"));
 
                 if (ignore)
                 {
@@ -950,7 +953,7 @@ Main(Array * args)
 
                         if (StrEquals(fieldType, "integer"))
                         {
-                            cType = "Int64";
+                            cType = "int64_t";
                         }
                         else if (StrEquals(fieldType, "float"))
                         {
@@ -958,7 +961,7 @@ Main(Array * args)
                         }
                         else if (StrEquals(fieldType, "boolean"))
                         {
-                            cType = "int";
+                            cType = "bool";
                         }
                         else
                         {
