@@ -63,7 +63,7 @@ for arg in $SCRIPT_ARGS; do
                 gcc*|clang*)
                     # "Fancy" compilers that support a plethora of additional flags we
                     # want to enable if present.
-                    CFLAGS="-Wall -Wextra -Werror -pedantic -std=c99 ${CFLAGS}"
+                    CFLAGS="-Wall -Wextra -Werror -pedantic -std=c99 -O3 ${CFLAGS}"
                     LDFLAGS="-flto -fdata-sections -ffunction-sections -s -Wl,-gc-sections"
                     ;;
             esac
