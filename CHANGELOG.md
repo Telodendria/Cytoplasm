@@ -7,6 +7,9 @@ releases. Final change log entries are published as [Releases](releases).
 
 ## v0.4.1
 
+Cytoplasm is now a C99 library! Upgrading from C89 to C99 makes Cytoplasm more portable
+than ever.
+
 ### New Features
 
 - Added an option to `j2s` to allow additional fields in structures and ignore them in
