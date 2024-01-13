@@ -1,15 +1,15 @@
-<p align="center"><img src="https://telodendria.io/assets/Cytoplasm.png"></p>
+<p align="center"><img src="https://telodendria.io/user/themes/bancino/images/logo/Cytoplasm.png"></p>
 <h1 align="center">Cytoplasm (<code>libcytoplasm</code>)</h1>
 
-Cytoplasm is a general-purpose C library for creating high-level (particularly networked and multi-threaded) C applications. It allows applications to take advantage of the speed, flexibility, and simplicity of the C programming language, while providing helpful code to allow applications to perform various complex tasks with minimal effort. Cytoplasm provides high-level data structures, a basic logging facility, an HTTP client and server, and more. It also reports memory leaks, which can aid in debugging.
+Cytoplasm is a general-purpose C library for creating high-level (particularly networked and multi-threaded) C applications. It allows applications to take advantage of the speed, flexibility, and simplicity of the C programming language, while providing helpful code to allow applications to perform various complex tasks with minimal effort. Cytoplasm provides high-level data structures, a basic logging facility, an HTTP client and server, and more. It also reports memory leaks, which can aid in debugging, particularly on systems that don't have advanced tools like `valgrind`.
 
-Cytoplasm aims not to only do one thing well, but to do many things good enough. This is in contrast to other libraries, which only do one thing and thus require the developer to pull in many different libraries. The primary target of Cytoplasm is simple yet higher level C applications that have to perform relatively complex tasks, but don't want to depend on a large number of dependencies.
+Cytoplasm aims not to only do one thing well, but to do many things good enough. This is in contrast to other libraries, which only do one thing and thus require the developer to pull in many different libraries for a broad range of functionality. The primary target of Cytoplasm is simple yet higher level C applications that have to perform relatively complex tasks, but don't want to depend on a large number of dependencies.
 
-Cytoplasm is extremely opinionated on the way programs using it are written. It strives to create a comprehensive and tightly-integrated programming environment, while also maintaining C programming correctness. It doesn't do any macro magic or make C look like anything other than C. It is written entirely in C89, and depends only on a POSIX environment. This differentiates it from other general-purpose libraries that often require modern compilers and non-standard language and environment features. Cytoplasm is intended to be extremely portable and simple, while still providing some of the functionality expected in higher-level programming languages in a platform-agnostic manner. In the case of TLS, Cytoplasm wraps low-level TLS libraries to offer a single, unified interface to TLS so that programs do not have to care about the underlying implementation.
+Cytoplasm is extremely opinionated on the way programs using it are written. It strives to create a comprehensive and tightly-integrated programming environment, while also maintaining C programming correctness. It doesn't do any macro magic or make C look like anything other than C. It is written entirely in C99, and depends only on a POSIX environment. This differentiates it from other general-purpose libraries that often require more modern compilers and non-standard language and environment features. Cytoplasm is intended to be extremely portable and simple, while still providing some of the functionality expected in higher-level programming languages in a platform-agnostic manner. In the case of TLS, Cytoplasm wraps low-level TLS libraries to offer a single, unified interface to TLS so that programs do not have to care about the underlying implementation.
 
 Cytoplasm is probably not suitable for embedded programming. It makes liberal use of the heap, and while data structures are designed to conserve memory where possible and practical, minimal memory usage is not really a design goal for Cytoplasm, although Cytoplasm takes care not to use any more memory than it absolutely needs. Cytoplasm also wraps a few standard libraries with additional logic and checking. While this ensures better runtime safety, this inevitably adds a little overhead, which may be unsuitable for time- or space-critical tasks.
 
-Originally a part of Telodendria (https://telodendria.io), a Matrix homeserver written in C, Cytoplasm was split off into its own project due to the desire of some Telodendria developers to use Telodendria's code in other projects. Cytoplasm is still an official Telodendria project, but it is designed specifically to be distributed and used totally independent of Telodendria.
+Originally a part of Telodendria ([Website](https://telodendria.io), [Repo](/Telodendria/Telodendria)), a Matrix homeserver written in C, Cytoplasm was split off into its own project due to the desire of some Telodendria developers to use Telodendria's code in other projects. Cytoplasm is still an official Telodendria project, but it is designed specifically to be distributed and used totally independent of Telodendria.
 
 The name "Cytoplasm" was chosen for a few reasons. It plays off the precedent set up by the Matrix organization in naming projects after the parts of a neuron. It also speaks to the function of Cytoplasm.  The cytoplasm of a cell is the supporting material. It is what gives the cell its shape, and it facilitates the movement of materials to the other cell parts. Likewise, Cytoplasm aims to provide a support mechanism for C applications that have to perform complex tasks beyond what the C standard library provides.
 
@@ -17,14 +17,7 @@ Cytoplasm also starts with a C, which I think is a nice touch for C libraries. I
 
 ## Requirements
 
-Cytoplasm makes the following assumptions about the underlying hardware:
-
-- It has words sizes that are powers of 2, and a native 32-bit integer type exists.
-- Integers are represented using two's compliment for negatives.
-
-The ANSI C standard requires an integer type of at least 32 bits, but does not require any more. If Cytoplasm is built on 32-bit platforms that don't provide a native 64-bit integer type, Cytoplasm emulates 64-bit integers. This can make it more portable.
-
-Cytoplasm aims to have zero software dependencies beyond what is mandated by POSIX. You only need the standard math and pthread libraries to build it. TLS support can optionally be enabled with the configuration script. The supported TLS implementations are as follows:
+Cytoplasm aims to have zero software dependencies beyond what is mandated by POSIX. You only need a standard C99 compiler, and the standard `math` and `pthread` libraries to build Cytoplasm. TLS support can optionally be enabled with the configuration script. The supported TLS implementations are as follows:
 
 - OpenSSL
 - LibreSSL
@@ -60,14 +53,11 @@ The `configure` script has a number of optional flags, which are as follows:
 - `--with-(openssl|libressl)`: Select the TLS implementation to use. OpenSSL is selected by default.
 - `--disable-tls`: Disable TLS altogether.
 - `--prefix=<path>`: Set the install prefix to set by default in the `Makefile`. This defaults to `/usr/local`, which should be appropriate for most Unix-like systems.
-- `--(enable|disable)-ld-extra`: Control whether or not to enable additional linking flags that create a more optimized binary. For large compilers such as GCC and Clang, these flags should be enabled. However, if you are using a small or more obscure compiler, then these flags may not be supported, so you can disable them with this option.
 - `--(enable|disable)-debug`: Control whether or not to enable debug mode. This sets the optimization level to 0 and builds with debug symbols. Useful for running with a debugger.
-- `--static` and `--no-static`: Controls whether static binaries for tools are built by default. On BSD systems, `--static` is perfectly acceptable, but on GNU systems, `--no-static` is often desirable to silence warnings about static binaries emitted by the GNU linker.
 
 Cytoplasm can be customized with the following options:
 
 - `--lib-name=<name>`: The output name of the library. This defaults to `Cytoplasm` and should in most cases not be changed.
-- `--lib-version=<version>`: The version string to embed in the library binaries. This can be used to indicate build customizations or non-release versions of Cytoplasm.
 
 The following recipes are available in the generated `Makefile`:
 
@@ -96,13 +86,13 @@ Cytoplasm provides the typical .so and .a files, which can be used to link progr
 Here is the canonical Hello World written with Cytoplasm:
 
 ```c
-    #include <Cytoplasm/Log.h>
+#include <Cytoplasm/Log.h>
 
-    int Main(void)
-    {
-        Log(LOG_INFO, "Hello World!");
-        return 0;
-    }
+int Main(void)
+{
+    Log(LOG_INFO, "Hello World!");
+    return 0;
+}
 ```
 
 If this file is `Hello.c`, then you can compile it by doing this:
