@@ -39,6 +39,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 
 /**
  * This function computes the amount of bytes needed to store a message
@@ -93,7 +94,7 @@ extern void
  * this means it will only fail if a bigger string is necessary, but it
  * could not be automatically allocated on the heap.
  */
-extern int
+extern bool
  Base64Pad(char **, size_t);
 
 #endif                             /* CYTOPLASM_BASE64_H */

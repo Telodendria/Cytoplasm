@@ -71,10 +71,10 @@
 #include "HashMap.h"
 #include "Array.h"
 #include "Stream.h"
-#include "Int64.h"
 
 #include <stdio.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define JSON_DEFAULT -1
 #define JSON_PRETTY 0
@@ -152,7 +152,7 @@ extern char * JsonValueAsString(JsonValue *);
  * Encode a number as a JSON value that can be added to an object or
  * an array.
  */
-extern JsonValue * JsonValueInteger(Int64);
+extern JsonValue * JsonValueInteger(uint64_t);
 
 /**
  * Unwrap a JSON value that represents a number. This function will
@@ -160,7 +160,7 @@ extern JsonValue * JsonValueInteger(Int64);
  * misleading. Check the type of the value before making assumptions
  * about its value.
  */
-extern Int64 JsonValueAsInteger(JsonValue *);
+extern uint64_t JsonValueAsInteger(JsonValue *);
 
 /**
  * Encode a floating point number as a JSON value that can be added
@@ -181,7 +181,7 @@ extern double JsonValueAsFloat(JsonValue *);
  * expressions as a JSON value that can be added to an object or an
  * array.
  */
-extern JsonValue * JsonValueBoolean(int);
+extern JsonValue * JsonValueBoolean(bool);
 
 /**
  * Unwrap a JSON value that represents a boolean. This function will
@@ -189,7 +189,7 @@ extern JsonValue * JsonValueBoolean(int);
  * misleading. Check the type of the value before making assumptions
  * about its type.
  */
-extern int JsonValueAsBoolean(JsonValue *);
+extern bool JsonValueAsBoolean(JsonValue *);
 
 /**
  * This is a special case that represents a JSON null. Because the
@@ -253,7 +253,7 @@ extern void JsonFree(HashMap *);
  * or if the stream is NULL, the number of bytes that would have
  * been written.
  */
-extern int JsonEncodeString(const char *, Stream *);
+extern size_t JsonEncodeString(const char *, Stream *);
 
 /**
  * Serialize a JSON value as it would appear in JSON output. This is
@@ -277,7 +277,7 @@ extern int JsonEncodeString(const char *, Stream *);
  * or if the stream is NULL, the number of bytes that would have
  * been written.
  */
-extern int JsonEncodeValue(JsonValue *, Stream *, int);
+extern size_t JsonEncodeValue(JsonValue *, Stream *, int);
 
 /**
  * Encode a JSON object as it would appear in JSON output, writing it
@@ -289,7 +289,7 @@ extern int JsonEncodeValue(JsonValue *, Stream *, int);
  * or if the stream is NULL, the number of bytes that would have
  * been written.
  */
-extern int JsonEncode(HashMap *, Stream *, int);
+extern size_t JsonEncode(HashMap *, Stream *, int);
 
 /**
  * Decode a JSON object from the given input stream and parse it into

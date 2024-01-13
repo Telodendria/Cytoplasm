@@ -150,7 +150,7 @@ extern void * HashMapDelete(HashMap *, const char *);
  * insertions or deletions occur during the iteration. This
  * functionality has not been tested, and will likely not work.
  */
-extern int HashMapIterate(HashMap *, char **, void **);
+extern bool HashMapIterate(HashMap *, char **, void **);
 
 /**
  * A reentrant version of
@@ -163,7 +163,7 @@ extern int HashMapIterate(HashMap *, char **, void **);
  * .Pp
  * The cursor should be initialized to 0 at the start of iteration.
  */
-extern int
+extern bool
 HashMapIterateReentrant(HashMap *, char **, void **, size_t *);
 
 /**

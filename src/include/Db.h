@@ -37,6 +37,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "HashMap.h"
 #include "Array.h"
@@ -113,7 +114,7 @@ extern DbRef * DbLock(Db *, size_t,...);
  * This function assumes the object is not locked, otherwise undefined
  * behavior will result.
  */
-extern int DbDelete(Db *, size_t,...);
+extern bool DbDelete(Db *, size_t,...);
 
 /**
  * Unlock an object and return it back to the database. This function
@@ -121,7 +122,7 @@ extern int DbDelete(Db *, size_t,...);
  * read cache; writes are always immediate to ensure data integrity in
  * the event of a system failure.
  */
-extern int DbUnlock(Db *, DbRef *);
+extern bool DbUnlock(Db *, DbRef *);
 
 /**
  * Check the existence of the given database object in a more efficient
@@ -130,7 +131,7 @@ extern int DbUnlock(Db *, DbRef *);
  * This function does not lock the object, nor does it load it into
  * memory if it exists.
  */
-extern int DbExists(Db *, size_t,...);
+extern bool DbExists(Db *, size_t,...);
 
 /**
  * List all of the objects at a given path. Unlike the other varargs
@@ -164,6 +165,6 @@ extern HashMap * DbJson(DbRef *);
  * replace it with new JSON. This is more efficient than duplicating
  * a separate object into the database reference.
  */
-extern int DbJsonSet(DbRef *, HashMap *);
+extern bool DbJsonSet(DbRef *, HashMap *);
 
 #endif

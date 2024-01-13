@@ -46,6 +46,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 
 /**
  * These functions operate on a queue structure that is opaque to the
@@ -73,7 +74,7 @@ extern void QueueFree(Queue *);
  * value indicating whether or not the push succeeded. Pushing items
  * into the queue will fail if the queue is full.
  */
-extern int QueuePush(Queue *, void *);
+extern bool QueuePush(Queue *, void *);
 
 /**
  * Pop an element out of the queue. This function returns NULL if the
@@ -95,11 +96,11 @@ extern void * QueuePeek(Queue *);
 /**
  * Determine whether or not the queue is full.
  */
-extern int QueueFull(Queue *);
+extern bool QueueFull(Queue *);
 
 /**
  * Determine whether or not the queue is empty.
  */
-extern int QueueEmpty(Queue *);
+extern bool QueueEmpty(Queue *);
 
 #endif

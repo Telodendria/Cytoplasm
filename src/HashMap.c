@@ -247,12 +247,12 @@ HashMapGet(HashMap * map, const char *key)
     return NULL;
 }
 
-int
+bool
 HashMapIterateReentrant(HashMap * map, char **key, void **value, size_t * i)
 {
     if (!map)
     {
-        return 0;
+        return false;
     }
 
     if (*i >= map->capacity)
@@ -260,7 +260,7 @@ HashMapIterateReentrant(HashMap * map, char **key, void **value, size_t * i)
         *i = 0;
         *key = NULL;
         *value = NULL;
-        return 0;
+        return false;
     }
 
     while (*i < map->capacity)
@@ -273,20 +273,20 @@ HashMapIterateReentrant(HashMap * map, char **key, void **value, size_t * i)
         {
             *key = bucket->key;
             *value = bucket->value;
-            return 1;
+            return true;
         }
     }
 
     *i = 0;
-    return 0;
+    return false;
 }
 
-int
+bool
 HashMapIterate(HashMap * map, char **key, void **value)
 {
     if (!map)
     {
-        return 0;
+        return false;
     }
     else
     {

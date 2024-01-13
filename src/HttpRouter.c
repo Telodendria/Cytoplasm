@@ -143,7 +143,7 @@ HttpRouterFree(HttpRouter * router)
     Free(router);
 }
 
-int
+bool
 HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 {
     RouteNode *node;
@@ -152,19 +152,19 @@ HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 
     if (!router || !regPath || !exec)
     {
-        return 0;
+        return false;
     }
 
     if (StrEquals(regPath, "/"))
     {
         router->root->exec = exec;
-        return 1;
+        return true;
     }
 
     regPath = StrDuplicate(regPath);
     if (!regPath)
     {
-        return 0;
+        return false;
     }
 
     tmp = regPath;
@@ -187,10 +187,10 @@ HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 
     Free(regPath);
 
-    return 1;
+    return true;
 }
 
-int
+bool
 HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
 {
     RouteNode *node;
@@ -199,17 +199,17 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
     HttpRouteFunc *exec = NULL;
     Array *matches = NULL;
     size_t i;
-    int retval;
+    bool retval;
 
     if (!router || !path)
     {
-        return 0;
+        return false;
     }
 
     matches = ArrayCreate();
     if (!matches)
     {
-        return 0;
+        return false;
     }
 
     node = router->root;
@@ -280,7 +280,7 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
 
     if (!exec)
     {
-        retval = 0;
+        retval = false;
         goto finish;
     }
 
@@ -293,7 +293,7 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
         exec(matches, args);
     }
 
-    retval = 1;
+    retval = true;
 
 finish:
     for (i = 0; i < ArraySize(matches); i++)

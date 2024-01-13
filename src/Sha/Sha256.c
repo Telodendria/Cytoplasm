@@ -23,7 +23,6 @@
  */
 #include <Sha.h>
 #include <Memory.h>
-#include <Int.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -31,10 +30,10 @@
 #include <limits.h>
 
 #define GET_UINT32(x) \
-    (((UInt32)(x)[0] << 24) | \
-     ((UInt32)(x)[1] << 16) | \
-     ((UInt32)(x)[2] << 8) | \
-     ((UInt32)(x)[3]))
+    (((uint32_t)(x)[0] << 24) | \
+     ((uint32_t)(x)[1] << 16) | \
+     ((uint32_t)(x)[2] << 8) | \
+     ((uint32_t)(x)[3]))
 
 #define PUT_UINT32(dst, x) { \
     (dst)[0] = (x) >> 24; \
@@ -56,8 +55,8 @@
 #define WW(i) (w[i] = w[i - 16] + S0(w[i - 15]) + w[i - 7] + S1(w[i - 2]))
 
 #define ROUND(a, b, c, d, e, f, g, h, k, w) { \
-    UInt32 tmp0 = h + T0(e) + CH(e, f, g) + k + w; \
-    UInt32 tmp1 = T1(a) + MAJ(a, b, c); \
+    uint32_t tmp0 = h + T0(e) + CH(e, f, g) + k + w; \
+    uint32_t tmp1 = T1(a) + MAJ(a, b, c); \
     h = tmp0 + tmp1; \
     d += tmp0; \
 }
@@ -65,7 +64,7 @@
 typedef struct Sha256Context
 {
     size_t length;
-    UInt32 state[8];
+    uint32_t state[8];
     size_t bufLen;
     unsigned char buffer[64];
 } Sha256Context;
@@ -73,7 +72,7 @@ typedef struct Sha256Context
 static void
 Sha256Chunk(Sha256Context * context, unsigned char chunk[64])
 {
-    const UInt32 rk[64] = {
+    const uint32_t rk[64] = {
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
         0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
         0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
@@ -87,8 +86,8 @@ Sha256Chunk(Sha256Context * context, unsigned char chunk[64])
         0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     };
 
-    UInt32 w[64];
-    UInt32 a, b, c, d, e, f, g, h;
+    uint32_t w[64];
+    uint32_t a, b, c, d, e, f, g, h;
 
     int i;
 
@@ -178,10 +177,10 @@ Sha256(char *str)
     unsigned char *out;
 
     unsigned char fill[64];
-    UInt32 fillLen;
+    uint32_t fillLen;
     unsigned char buf[8];
-    UInt32 hiLen;
-    UInt32 loLen;
+    uint32_t hiLen;
+    uint32_t loLen;
 
     if (!str)
     {
@@ -213,8 +212,8 @@ Sha256(char *str)
     fill[0] = 0x80;
 
     fillLen = (context.bufLen < 56) ? 56 - context.bufLen : 120 - context.bufLen;
-    hiLen = (UInt32) (context.length >> 29);
-    loLen = (UInt32) (context.length << 3);
+    hiLen = (uint32_t) (context.length >> 29);
+    loLen = (uint32_t) (context.length << 3);
 
     PUT_UINT32(&buf[0], hiLen);
     PUT_UINT32(&buf[4], loLen);

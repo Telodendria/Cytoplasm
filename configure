@@ -13,22 +13,43 @@ SRC="src"
 INCLUDE="src/include"
 TOOLS="tools"
 
-CFLAGS="-Wall -Wextra -pedantic -std=c89 -O3 -pipe -D_DEFAULT_SOURCE -I${INCLUDE}"
-LIBS="-lm -pthread"
+# Default compiler flags. These must be supported by all POSIX C compilers.
+# "Fancy" compilers that have additional options must be detected and set below.
+CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE}"
+LIBS="-lm -lpthread"
 
+# Default args for all platforms.
+SCRIPT_ARGS="--prefix=/usr/local --lib-name=Cytoplasm"
 
-# Set default args for all platforms
-SCRIPT_ARGS="--cc=cc --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.1 $@"
-
-# Set platform specific args
+# Set SSL flags depending on the platform.
 case "$(uname)" in
     OpenBSD)
-        SCRIPT_ARGS="--with-libressl $SCRIPT_ARGS"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-libressl"
         ;;
     *)
-        SCRIPT_ARGS="--with-openssl $SCRIPT_ARGS"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-openssl"
         ;;
 esac
+
+# Set compiler depending on the platform.
+case "$(uname)" in
+    Linux|NetBSD)
+        # These systems typically use GCC.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=gcc"
+        ;;
+    OpenBSD|FreeBSD)
+        # These systems typically use Clang.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=clang"
+        ;;
+    *)
+        # Use default compiler which is required to be present on
+        # all POSIX-compliant systems.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=c99"
+        ;;
+esac
+
+# Append any additional args specified by user
+SCRIPT_ARGS="${SCRIPT_ARGS} $@"
 
 echo "Processing options..."
 echo "Ran with arguments: $SCRIPT_ARGS"
@@ -38,6 +59,14 @@ for arg in $SCRIPT_ARGS; do
     case "$arg" in
         --cc=*)
             CC=$(echo "$arg" | cut -d '=' -f 2-)
+            case "${CC}" in
+                gcc*|clang*)
+                    # "Fancy" compilers that support a plethora of additional flags we
+                    # want to enable if present.
+                    CFLAGS="-Wall -Werror -pedantic -std=c99 ${CFLAGS}"
+                    LDFLAGS="-flto -fdata-sections -ffunction-sections -s -Wl,-gc-sections"
+                    ;;
+            esac
             ;;
         --with-openssl)
             TLS_IMPL="TLS_OPENSSL"
@@ -54,34 +83,14 @@ for arg in $SCRIPT_ARGS; do
         --prefix=*)
             PREFIX=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
-        --enable-ld-extra)
-            LD_EXTRA="-flto -fdata-sections -ffunction-sections -s -Wl,-gc-sections"
-            ;;
-        --disable-ld-extra)
-            LD_EXTRA=""
-            ;;
         --lib-name=*)
             LIB_NAME=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
-        --lib-version=*)
-            LIB_VERSION=$(echo "$arg" | cut -d '=' -f 2-)
-            ;;
         --enable-debug)
             DEBUG="-O0 -g"
-            echo "Notice: --enable-debug implies --disable-ld-extra and --no-static."
-            echo "You must explicitly provide --enable-ld-extra and/or --static after"
-            echo "specifying --enable-debug if you wish to enable these features in debug mode."
-            LD_EXTRA=""
-            STATIC=""
             ;;
         --disable-debug)
             DEBUG=""
-            ;;
-        --static)
-            STATIC="-static -Wl,-static"
-            ;;
-        --no-static)
-            STATIC=""
             ;;
         *)
             echo "Invalid argument: $arg"
@@ -95,8 +104,8 @@ if [ -n "$TLS_IMPL" ]; then
     LIBS="${LIBS} ${TLS_LIBS}"
 fi
 
-CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' '-DLIB_VERSION=\"${LIB_VERSION}\"' ${DEBUG}"
-LDFLAGS="${LIBS} ${LD_EXTRA}"
+CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' ${DEBUG}"
+LDFLAGS="${LIBS} ${LDFLAGS}"
 
 #
 # Makefile generation
@@ -128,11 +137,27 @@ print_obj() {
 	printf '%s ' "$2"
 }
 
+get_deps() {
+    src="$1"
+
+    ${CC} -I${INCLUDE} -E "$src" \
+        | grep '^#'              \
+        | awk '{print $3}'       \
+        | cut -d '"' -f 2        \
+        | sort                   \
+        | uniq                   \
+        | grep -v '^[/<]'        \
+        | grep "^${SRC}/"        \
+        | while IFS= read -r dep; do
+        printf "%s " "$dep"
+    done
+}
+
 compile_obj() {
 	src="$1"
 	obj="$2"
 
-	${CC} -I${INCLUDE} -MM -MT "${obj}" "${src}"
+	echo "${obj}: $(get_deps ${src})"
 	echo "${TAB}@mkdir -p $(dirname ${obj})"
 	echo "${TAB}\$(CC) \$(CFLAGS) -fPIC -c -o \"${obj}\" \"${src}\""
 }
@@ -143,16 +168,13 @@ compile_bin() {
 
     echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${src}"
     echo "${TAB}@mkdir -p ${OUT}/bin"
-    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}"
+    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME}"
 }
 
 compile_doc() {
 	src="$1"
 	out="$2"
-
-    if [ -z "${STATIC}" ]; then
-        pref="LD_LIBRARY_PATH=${OUT}/lib "
-    fi
+    pref="LD_LIBRARY_PATH=${OUT}/lib "
 
 	echo "${out}: ${OUT}/bin/hdoc ${src}"
 	echo "${TAB}@mkdir -p ${OUT}/man/man3"

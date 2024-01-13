@@ -39,6 +39,8 @@
 #include "Io.h"
 
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 /**
  * An opaque structure analogous to C's FILE pointers.
@@ -172,7 +174,7 @@ extern off_t StreamSeek(Stream *, off_t, int);
  * .Xr feof 3
  * function.
  */
-extern int StreamEof(Stream *);
+extern bool StreamEof(Stream *);
 
 /**
  * Test the stream for an error condition, returning a boolean value
@@ -181,7 +183,7 @@ extern int StreamEof(Stream *);
  * .Xr ferror 3
  * function.
  */
-extern int StreamError(Stream *);
+extern bool StreamError(Stream *);
 
 /**
  * Clear the error condition associated with the given stream, allowing

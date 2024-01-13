@@ -76,6 +76,7 @@
  * macros.
  */
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * These values are passed into the memory hook function to indicate

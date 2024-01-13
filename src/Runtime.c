@@ -38,11 +38,11 @@ HexDump(size_t off, char *hexBuf, char *asciiBuf, void *args)
 
     if (hexBuf && asciiBuf)
     {
-        fprintf(report, "%04lx: %s | %s |\n", off, hexBuf, asciiBuf);
+        fprintf(report, "%04zx: %s | %s |\n", off, hexBuf, asciiBuf);
     }
     else
     {
-        fprintf(report, "%04lx\n", off);
+        fprintf(report, "%04zx\n", off);
     }
 }
 
@@ -52,7 +52,7 @@ MemoryIterator(MemoryInfo * i, void *args)
 {
     FILE *report = args;
 
-    fprintf(report, "%s:%d: %lu bytes at %p\n",
+    fprintf(report, "%s:%d: %zu bytes at %p\n",
             MemoryInfoGetFile(i), MemoryInfoGetLine(i),
             MemoryInfoGetSize(i), MemoryInfoGetPointer(i));
 
@@ -107,7 +107,7 @@ GenerateMemoryReport(int argc, char **argv)
         fprintf(report, " '%s'", argv[i]);
     }
     fprintf(report, "\nDate: %s\n", tsBuffer);
-    fprintf(report, "Total Bytes: %lu\n", MemoryAllocated());
+    fprintf(report, "Total Bytes: %zu\n", MemoryAllocated());
     fprintf(report, "\n");
 
     MemoryIterate(MemoryIterator, report);

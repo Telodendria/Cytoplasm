@@ -465,7 +465,7 @@ HttpServerWorkerThread(void *args)
         ssize_t i = 0;
         HttpRequestMethod requestMethod;
 
-        UInt64 firstRead;
+        uint64_t firstRead;
 
         fp = DequeueConnection(server);
 
@@ -473,7 +473,7 @@ HttpServerWorkerThread(void *args)
         {
             /* Block for 1 millisecond before continuing so we don't
              * murder the CPU if the queue is empty. */
-            UtilSleepMillis(UInt64Create(0, 1));
+            UtilSleepMillis(1);
             continue;
         }
 
@@ -483,21 +483,25 @@ HttpServerWorkerThread(void *args)
          * happens, UtilGetLine() sets errno to EAGAIN. If we get
          * EAGAIN, then clear the error on the stream and try again
          * after a few ms. This is typically more than enough time for
-         * the client to send data. */
-        firstRead = UtilServerTs();
+         * the client to send data.
+         *
+         * TODO: Instead of looping, abort immediately, and place the request
+         * at the end of the queue.
+         */
+        firstRead = UtilTsMillis();
         while ((lineLen = UtilGetLine(&line, &lineSize, fp)) == -1
                && errno == EAGAIN)
         {
             StreamClearError(fp);
 
-            /* If the server is stopped, or it's been a while, just
-             * give up so we aren't wasting a thread on this client. */
-            if (server->stop || UInt64Gt(UInt64Sub(UtilServerTs(), firstRead), UInt64Create(0, 1000 * 30)))
+            // If the server is stopped, or it's been a while, just
+            // give up so we aren't wasting a thread on this client.
+            if (server->stop || (UtilTsMillis() - firstRead) > (1000 * 30))
             {
                 goto finish;
             }
 
-            UtilSleepMillis(UInt64Create(0, 5));
+            UtilSleepMillis(5);
         }
 
         if (lineLen == -1)
@@ -711,25 +715,25 @@ HttpServerEventThread(void *args)
     return NULL;
 }
 
-int
+bool
 HttpServerStart(HttpServer * server)
 {
     if (!server)
     {
-        return 0;
+        return false;
     }
 
     if (server->isRunning)
     {
-        return 1;
+        return true;
     }
 
     if (pthread_create(&server->socketThread, NULL, HttpServerEventThread, server) != 0)
     {
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 void

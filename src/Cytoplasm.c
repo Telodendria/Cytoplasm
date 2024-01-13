@@ -24,12 +24,22 @@
 
 #include <Cytoplasm.h>
 
-char *CytoplasmGetName()
+int
+CytoplasmGetVersion(void)
 {
-    return LIB_NAME;
+    return CYTOPLASM_VERSION;
 }
 
-char *CytoplasmGetVersion()
+const char *
+CytoplasmGetVersionStr(void)
 {
-    return LIB_VERSION;
+    return "v" STRINGIFY(CYTOPLASM_VERSION_MAJOR)
+           "." STRINGIFY(CYTOPLASM_VERSION_MINOR)
+           "." STRINGIFY(CYTOPLASM_VERSION_PATCH)
+#if CYTOPLASM_VERSION_ALPHA
+    "-alpha" STRINGIFY(CYTOPLASM_VERSION_ALPHA)
+#elif CYTOPLASM_VERSION_BETA
+    "-beta" STRINGIFY(CYTOPLASM_VERSION_BETA)
+#endif
+    ;
 }

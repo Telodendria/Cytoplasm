@@ -58,11 +58,13 @@
  */
 
 #include <stddef.h>
+#include <stdint.h>
 
 /**
- * Generate a single random integer between 0 and the passed value.
+ * Generate a single random 32-bit integer between 0 and the
+ * passed value.
  */
-extern int RandInt(unsigned int);
+extern uint32_t RandInt(uint32_t);
 
 /**
  * Generate the number of integers specified by the second argument
@@ -76,6 +78,6 @@ extern int RandInt(unsigned int);
  * has to lock and unlock a mutex. It is therefore better to obtain
  * multiple random numbers in one pass if multiple are needed.
  */
-extern void RandIntN(int *, size_t, unsigned int);
+extern void RandIntN(uint32_t *, size_t, uint32_t);
 
 #endif                             /* CYTOPLASM_RAND_H */

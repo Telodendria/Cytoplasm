@@ -52,6 +52,7 @@
 
 #include <stddef.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 /**
  * The functions in this API operate on an array structure which is
@@ -98,7 +99,7 @@ extern void *ArrayGet(Array *, size_t);
  * This function returns a boolean value indicating whether or not it
  * suceeded.
  */
-extern int ArrayInsert(Array *, size_t, void *);
+extern bool ArrayInsert(Array *, size_t, void *);
 
 /**
  * Set the value at the specified index in the specified array to the
@@ -115,7 +116,7 @@ extern void *ArraySet(Array *, size_t, void *);
  * return value as
  * .Fn ArrayInsert .
  */
-extern int ArrayAdd(Array *, void *);
+extern bool ArrayAdd(Array *, void *);
 
 /**
  * Remove the element at the specified index from the specified array.
@@ -146,7 +147,7 @@ extern void ArraySort(Array *, int (*) (void *, void *));
  * .P
  * This is a relatively expensive operation. The array must first be
  * duplicated. Then it is sorted, then it is iterated from beginning
- * to end to remove duplicate entires. Note that the comparison 
+ * to end to remove duplicate entries. Note that the comparison
  * function is executed on each element at least twice.
  */
 extern Array *ArrayUnique(Array *, int (*) (void *, void *));
@@ -167,7 +168,7 @@ extern Array *ArrayReverse(Array *);
  * array. This function is intended to be used by functions that return
  * relatively read-only arrays that will be long-lived.
  */
-extern int ArrayTrim(Array *);
+extern bool ArrayTrim(Array *);
 
 /**
  * Convert a variadic arguments list into an Array. In most cases, the

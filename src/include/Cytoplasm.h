@@ -24,6 +24,17 @@
 #ifndef CYTOPLASM_CYTOPLASM_H
 #define CYTOPLASM_CYTOPLASM_H
 
+#define CYTOPLASM_VERSION_MAJOR 0
+#define CYTOPLASM_VERSION_MINOR 4
+#define CYTOPLASM_VERSION_PATCH 1
+#define CYTOPLASM_VERSION ((CYTOPLASM_VERSION_MAJOR * 10000) + (CYTOPLASM_VERSION_MINOR * 100) + (CYTOPLASM_VERSION_PATCH))
+
+#define CYTOPLASM_VERSION_ALPHA 1
+#define CYTOPLASM_VERSION_BETA 0
+#define CYTOPLASM_VERSION_STABLE (!CYTOPLASM_VERSION_ALPHA && !CYTOPLASM_VERSION_BETA)
+
+#define STRINGIFY(x) #x
+
 /***
  * @Nm Cytoplasm
  * @Nd A simple API that provides metadata on the library itself.
@@ -34,18 +45,8 @@
  * currently loaded library.
  */
 
-
-/**
- * Get the name that this library was compiled with. In most cases,
- * this will be hard-coded to "Cytoplasm", but it may differ if, for
- * some reason, there exists another ABI-compatible library that
- * wishes to report its name.
- * 
- * This function really only exists because the information is
- * available along side of the version information so for
- * consistency, it made sense to include both.
- */
-extern char * CytoplasmGetName(void);
+/** */
+extern int CytoplasmGetVersion(void);
 
 /**
  * Get the library version. This will be useful mostly for printing
@@ -55,6 +56,6 @@ extern char * CytoplasmGetName(void);
  * This function returns a string, which should usually be able to be
  * parsed using sscanf() if absolutely necessary.
  */
-extern char * CytoplasmGetVersion(void);
+extern const char * CytoplasmGetVersionStr(void);
 
 #endif /* CYTOPLASM_CYTOPLASM_H */

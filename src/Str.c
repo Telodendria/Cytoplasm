@@ -26,7 +26,6 @@
 #include <Memory.h>
 #include <Util.h>
 #include <Rand.h>
-#include <Int.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -35,8 +34,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
-UInt32
-StrUtf16Decode(UInt16 high, UInt16 low)
+uint32_t
+StrUtf16Decode(uint16_t high, uint16_t low)
 {
     if (high <= 0xD7FF)
     {
@@ -56,7 +55,7 @@ StrUtf16Decode(UInt16 high, UInt16 low)
 }
 
 char *
-StrUtf8Encode(UInt32 codepoint)
+StrUtf8Encode(uint32_t codepoint)
 {
     char *str;
 
@@ -220,10 +219,10 @@ StrConcat(size_t nStr,...)
     return str;
 }
 
-int
+bool
 StrBlank(const char *str)
 {
-    int blank = 1;
+    bool blank = true;
     size_t i = 0;
 
     while (str[i])
@@ -245,7 +244,7 @@ StrRandom(size_t len)
     static const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     char *str;
-    int *nums;
+    uint32_t *nums;
     size_t i;
 
     if (!len)
@@ -260,7 +259,7 @@ StrRandom(size_t len)
         return NULL;
     }
 
-    nums = Malloc(len * sizeof(int));
+    nums = Malloc(len * sizeof(uint32_t));
     if (!nums)
     {
         Free(str);
@@ -323,21 +322,21 @@ StrLower(char *str)
     return ret;
 }
 
-int
+bool
 StrEquals(const char *str1, const char *str2)
 {
     /* Both strings are NULL, they're equal */
     if (!str1 && !str2)
     {
-        return 1;
+        return true;
     }
 
     /* One or the other is NULL, they're not equal */
     if (!str1 || !str2)
     {
-        return 0;
+        return false;
     }
 
     /* Neither are NULL, do a regular string comparison */
-    return strcmp(str1, str2) == 0;
+    return (strcmp(str1, str2) == 0);
 }

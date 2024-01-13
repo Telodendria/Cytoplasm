@@ -47,6 +47,7 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "Http.h"
 #include "HashMap.h"
@@ -133,7 +134,7 @@ extern void HttpServerFree(HttpServer *);
  * caller can continue working while the HTTP server is running in a
  * separate thread and managing a pool of threads to handle responses.
  */
-extern int HttpServerStart(HttpServer *);
+extern bool HttpServerStart(HttpServer *);
 
 /**
  * Typically, at some point after calling

@@ -74,7 +74,7 @@ extern void HttpRouterFree(HttpRouter *);
  * .Pa /some/path/(.*)/parts
  * to work as one would expect.
  */
-extern int HttpRouterAdd(HttpRouter *, char *, HttpRouteFunc *);
+extern bool HttpRouterAdd(HttpRouter *, char *, HttpRouteFunc *);
 
 /**
  * Route the specified request path using the specified routing
@@ -86,6 +86,6 @@ extern int HttpRouterAdd(HttpRouter *, char *, HttpRouteFunc *);
  * how to handle, and the pointer to a void pointer is where the
  * route function's response will be placed.
  */
-extern int HttpRouterRoute(HttpRouter *, char *, void *, void **);
+extern bool HttpRouterRoute(HttpRouter *, char *, void *, void **);
 
 #endif                             /* CYTOPLASM_HTTPROUTER_H */

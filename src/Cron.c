@@ -23,32 +23,33 @@
  */
 #include <Cron.h>
 
-#include <UInt64.h>
 #include <Array.h>
 #include <Memory.h>
 #include <Util.h>
+
+#include <stdbool.h>
 
 #include <pthread.h>
 
 struct Cron
 {
-    UInt64 tick;
+    uint64_t tick;
     Array *jobs;
     pthread_mutex_t lock;
-    volatile unsigned int stop:1;
     pthread_t thread;
+    volatile bool stop;
 };
 
 typedef struct Job
 {
-    UInt64 interval;
-    UInt64 lastExec;
+    uint64_t interval;
+    uint64_t lastExec;
     JobFunc *func;
     void *args;
 } Job;
 
 static Job *
-JobCreate(UInt32 interval, JobFunc * func, void *args)
+JobCreate(uint64_t interval, JobFunc * func, void *args)
 {
     Job *job;
 
@@ -63,8 +64,8 @@ JobCreate(UInt32 interval, JobFunc * func, void *args)
         return NULL;
     }
 
-    job->interval = UInt64Create(0, interval);
-    job->lastExec = UInt64Create(0, 0);
+    job->interval = interval;
+    job->lastExec = 0;
     job->func = func;
     job->args = args;
 
@@ -79,51 +80,51 @@ CronThread(void *args)
     while (!cron->stop)
     {
         size_t i;
-        UInt64 ts;                 /* tick start */
-        UInt64 te;                 /* tick end */
+        uint64_t ts;                 /* tick start */
+        uint64_t te;                 /* tick end */
 
         pthread_mutex_lock(&cron->lock);
 
-        ts = UtilServerTs();
+        ts = UtilTsMillis();
 
         for (i = 0; i < ArraySize(cron->jobs); i++)
         {
             Job *job = ArrayGet(cron->jobs, i);
 
-            if (UInt64Gt(UInt64Sub(ts, job->lastExec), job->interval))
+            if ((ts - job->lastExec) > job->interval)
             {
                 job->func(job->args);
                 job->lastExec = ts;
             }
 
-            if (UInt64Eq(job->interval, UInt64Create(0, 0)))
+            if (!job->interval)
             {
                 ArrayDelete(cron->jobs, i);
                 Free(job);
             }
         }
-        te = UtilServerTs();
+        te = UtilTsMillis();
 
         pthread_mutex_unlock(&cron->lock);
 
-        /* Only sleep if the jobs didn't overrun the tick */
-        if (UInt64Gt(cron->tick, UInt64Sub(te, ts)))
+        // Only sleep if the jobs didn't overrun the tick
+        if (cron->tick > (te - ts))
         {
-            const UInt64 microTick = UInt64Create(0, 100);
+            const uint64_t microTick = 100;
 
-            UInt64 remainingTick = UInt64Sub(cron->tick, UInt64Sub(te, ts));
+            uint64_t remainingTick = cron->tick - (te - ts);
 
             /* Only sleep for microTick ms at a time because if the job
              * scheduler is supposed to stop before the tick is up, we
              * don't want to be stuck in a long sleep */
-            while (UInt64Geq(remainingTick, microTick) && !cron->stop)
+            while (remainingTick >= microTick && !cron->stop)
             {
                 UtilSleepMillis(microTick);
 
-                remainingTick = UInt64Sub(remainingTick, microTick);
+                remainingTick -= microTick;
             }
 
-            if (UInt64Neq(remainingTick, UInt64Create(0, 0)) && !cron->stop)
+            if (remainingTick && !cron->stop)
             {
                 UtilSleepMillis(remainingTick);
             }
@@ -134,7 +135,7 @@ CronThread(void *args)
 }
 
 Cron *
-CronCreate(UInt32 tick)
+CronCreate(uint64_t tick)
 {
     Cron *cron = Malloc(sizeof(Cron));
 
@@ -150,8 +151,8 @@ CronCreate(UInt32 tick)
         return NULL;
     }
 
-    cron->tick = UInt64Create(0, tick);
-    cron->stop = 1;
+    cron->tick = tick;
+    cron->stop = true;
 
     pthread_mutex_init(&cron->lock, NULL);
 
@@ -180,7 +181,7 @@ CronOnce(Cron * cron, JobFunc * func, void *args)
 }
 
 void
-CronEvery(Cron * cron, unsigned long interval, JobFunc * func, void *args)
+CronEvery(Cron * cron, uint64_t interval, JobFunc * func, void *args)
 {
     Job *job;
 
@@ -208,7 +209,7 @@ CronStart(Cron * cron)
         return;
     }
 
-    cron->stop = 0;
+    cron->stop = false;
 
     pthread_create(&cron->thread, NULL, CronThread, cron);
 }
@@ -221,7 +222,7 @@ CronStop(Cron * cron)
         return;
     }
 
-    cron->stop = 1;
+    cron->stop = true;
 
     pthread_join(cron->thread, NULL);
 }

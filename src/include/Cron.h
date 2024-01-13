@@ -24,6 +24,8 @@
 #ifndef CYTOPLASM_CRON_H
 #define CYTOPLASM_CRON_H
 
+#include <stdint.h>
+
 /***
  * @Nm Cron
  * @Nd Basic periodic job scheduler.
@@ -56,8 +58,6 @@
  * by any means.
  */
 
-#include "Int.h"
-
 /**
  * All functions defined here operate on a structure opaque to the
  * caller.
@@ -82,7 +82,7 @@ typedef void (JobFunc) (void *);
  * .Pp
  * This function takes the tick interval in milliseconds.
  */
-extern Cron * CronCreate(UInt32);
+extern Cron * CronCreate(uint64_t);
 
 /**
  * Schedule a one-off job to be executed only at the next tick, and
@@ -110,7 +110,7 @@ extern void
  * and a pointer to pass to that function when it is executed.
  */
 extern void
- CronEvery(Cron *, unsigned long, JobFunc *, void *);
+ CronEvery(Cron *, uint64_t, JobFunc *, void *);
 
 /**
  * Start ticking the clock and executing registered jobs.

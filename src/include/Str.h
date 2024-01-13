@@ -39,21 +39,21 @@
  * is a standard library header.
  */
 
-#include "Int.h"
-
 #include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 /**
  * Convert UTF-16 into a Unicode codepoint.
  */
-extern UInt32 StrUtf16Decode(UInt16, UInt16);
+extern uint32_t StrUtf16Decode(uint16_t, uint16_t);
 
 /**
  * Take a Unicode codepoint and encode it into a string buffer containing
  * between 1 and 4 bytes. The string buffer is allocated on the heap,
  * so it should be freed when it is no longer needed.
  */
-extern char * StrUtf8Encode(UInt32);
+extern char * StrUtf8Encode(uint32_t);
 
 /**
  * Duplicate a null-terminated string, returning a new string on the
@@ -87,7 +87,7 @@ extern char * StrConcat(size_t,...);
  * string consists only of blank characters, as determined by
  * .Xr isblank 3 .
  */
-extern int StrBlank(const char *str);
+extern bool StrBlank(const char *str);
 
 /**
  * Generate a string of the specified length, containing random
@@ -124,6 +124,6 @@ extern char * StrLower(char *);
  * function returns a boolean value indicating whether or not
  * strcmp() returned 0.
  */
-extern int StrEquals(const char *, const char *);
+extern bool StrEquals(const char *, const char *);
 
 #endif                             /* CYTOPLASM_STR_H */
