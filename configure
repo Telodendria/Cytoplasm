@@ -10,7 +10,7 @@ echo "-------------------"
 BUILD="build"
 OUT="out"
 SRC="src"
-INCLUDE="src/include"
+INCLUDE="include/Cytoplasm"
 TOOLS="tools"
 
 # Default compiler flags. These must be supported by all POSIX C compilers.
