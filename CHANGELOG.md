@@ -19,6 +19,8 @@ are not even initialized to a default value.
   specific circumstances.
 - Added `JsonMerge()` to the JSON API to merge two JSON objects together.
 - Make `HttpRouter` decode path parts before matching them on regular expressions.
+- Fixed a bug in `ArraySort()` that would crash programs if the passed array has no
+  elements.
 
 ## v0.4.0
 

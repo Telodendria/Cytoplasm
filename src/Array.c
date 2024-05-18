@@ -267,8 +267,9 @@ ArrayQuickSort(Array * array, size_t low, size_t high, int (*compare) (void *, v
 void
 ArraySort(Array * array, int (*compare) (void *, void *))
 {
-    if (!array)
+    if (!ArraySize(array))
     {
+        // If a NULL ptr was given, or the array has no elements, do nothing.
         return;
     }
     ArrayQuickSort(array, 0, array->size - 1, compare);
