@@ -218,19 +218,38 @@ DbHashKey(Array * args)
     return str;
 }
 
+static char
+DbSanitiseChar(char input)
+{
+    switch (input)
+    {
+        case '/':
+            return '_';
+        case '.':
+            return '-';
+    }
+    return input;
+}
+
 static char *
 DbDirName(Db * db, Array * args, size_t strip)
 {
-    size_t i;
+    size_t i, j;
     char *str = StrConcat(2, db->dir, "/");
 
     for (i = 0; i < ArraySize(args) - strip; i++)
     {
         char *tmp;
+        char *sanitise = StrDuplicate(ArrayGet(args, i));
+        for (j = 0; j < strlen(sanitise); j++)
+        {
+            sanitise[j] = DbSanitiseChar(sanitise[j]);
+        }
 
-        tmp = StrConcat(3, str, ArrayGet(args, i), "/");
+        tmp = StrConcat(3, str, sanitise, "/");
 
         Free(str);
+        Free(sanitise);
 
         str = tmp;
     }
@@ -253,17 +272,7 @@ DbFileName(Db * db, Array * args)
         /* Sanitize name to prevent directory traversal attacks */
         while (arg[j])
         {
-            switch (arg[j])
-            {
-                case '/':
-                    arg[j] = '_';
-                    break;
-                case '.':
-                    arg[j] = '-';
-                    break;
-                default:
-                    break;
-            }
+            arg[j] = DbSanitiseChar(arg[j]);
             j++;
         }
 
