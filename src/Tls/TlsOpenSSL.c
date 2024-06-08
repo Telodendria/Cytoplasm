@@ -295,9 +295,7 @@ TlsClose(void *cookie)
     SSL_free(ssl->ssl);
     SSL_CTX_free(ssl->ctx);
 
-#if 0
     close(ssl->fd);
-#endif
 
     Free(ssl);
 
