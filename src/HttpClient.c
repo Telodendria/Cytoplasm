@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <Cytoplasm.h>
 #include <Http.h>
 #include <Memory.h>
 #include <Util.h>
@@ -154,7 +155,7 @@ HttpRequest(HttpRequestMethod method, int flags, unsigned short port, char *host
                  HttpRequestMethodToString(method), path);
 
     HttpRequestHeader(context, "Connection", "close");
-    HttpRequestHeader(context, "User-Agent", LIB_NAME "/" LIB_VERSION);
+    HttpRequestHeader(context, "User-Agent", LIB_NAME "/" STRINGIFY(CYTOPLASM_VERSION));
     HttpRequestHeader(context, "Host", host);
 
     return context;

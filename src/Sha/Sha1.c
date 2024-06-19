@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -23,7 +23,6 @@
  */
 #include <Sha.h>
 #include <Memory.h>
-#include <Int.h>
 
 #include <string.h>
 
@@ -31,10 +30,10 @@
 
 #define LOAD32H(x, y) \
 	{ \
-		x = ((UInt32)((y)[0] & 255) << 24) | \
-			((UInt32)((y)[1] & 255) << 16) | \
-			((UInt32)((y)[2] & 255) <<  8) | \
-			((UInt32)((y)[3] & 255));        \
+		x = ((uint32_t)((y)[0] & 255) << 24) | \
+			((uint32_t)((y)[1] & 255) << 16) | \
+			((uint32_t)((y)[2] & 255) <<  8) | \
+			((uint32_t)((y)[3] & 255));        \
 	}
 
 #define ROL(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
@@ -49,22 +48,22 @@
 
 typedef union
 {
-    UInt8 c[64];
-    UInt32 l[16];
+    uint8_t c[64];
+    uint32_t l[16];
 } Char64Long16;
 
 typedef struct
 {
-    UInt32 state[5];
-    UInt32 count[2];
-    UInt8 buffer[64];
+    uint32_t state[5];
+    uint32_t count[2];
+    uint8_t buffer[64];
 } Sha1Context;
 
 static void
-Sha1Transform(UInt32 state[5], const UInt8 buffer[64])
+Sha1Transform(uint32_t state[5], const uint8_t *buffer)
 {
-    UInt32 a, b, c, d, e, i;
-    UInt8 workspace[64];
+    uint32_t a, b, c, d, e, i;
+    uint8_t workspace[64];
     Char64Long16 *block = (Char64Long16 *) workspace;
 
     for (i = 0; i < 16; i++)
@@ -180,9 +179,9 @@ Sha1Init(Sha1Context * ctx)
 }
 
 static void
-Sha1Update(Sha1Context * ctx, const void *buf, UInt32 size)
+Sha1Update(Sha1Context * ctx, const void *buf, uint32_t size)
 {
-    UInt32 i, j;
+    uint32_t i, j;
 
     j = (ctx->count[0] >> 3) & 63;
 
@@ -202,7 +201,7 @@ Sha1Update(Sha1Context * ctx, const void *buf, UInt32 size)
 
         for (; i + 63 < size; i += 64)
         {
-            Sha1Transform(ctx->state, (UInt8 *) buf + i);
+            Sha1Transform(ctx->state, (uint8_t *) buf + i);
         }
 
         j = 0;
@@ -212,14 +211,14 @@ Sha1Update(Sha1Context * ctx, const void *buf, UInt32 size)
         i = 0;
     }
 
-    memcpy(&ctx->buffer[j], &((UInt8 *) buf)[i], size - i);
+    memcpy(&ctx->buffer[j], &((uint8_t *) buf)[i], size - i);
 }
 
 static void
 Sha1Calculate(Sha1Context * ctx, unsigned char *out)
 {
-    UInt32 i;
-    UInt8 count[8];
+    uint32_t i;
+    uint8_t count[8];
 
     for (i = 0; i < 8; i++)
     {
@@ -227,16 +226,16 @@ Sha1Calculate(Sha1Context * ctx, unsigned char *out)
                                      >> ((3 - (i & 3)) * 8)) & 255);
     }
 
-    Sha1Update(ctx, (UInt8 *) "\x80", 1);
+    Sha1Update(ctx, (uint8_t *) "\x80", 1);
     while ((ctx->count[0] & 504) != 448)
     {
-        Sha1Update(ctx, (UInt8 *) "\0", 1);
+        Sha1Update(ctx, (uint8_t *) "\0", 1);
     }
 
     Sha1Update(ctx, count, 8);
     for (i = 0; i < (160 / 8); i++)
     {
-        out[i] = (UInt8) ((ctx->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
+        out[i] = (uint8_t) ((ctx->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
     }
 }
 

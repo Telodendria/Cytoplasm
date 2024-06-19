@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -26,7 +26,6 @@
 #include <Io.h>
 #include <Memory.h>
 #include <Util.h>
-#include <Int.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,11 +49,11 @@ struct Stream
 {
     Io *io;
 
-    UInt8 *rBuf;
+    uint8_t *rBuf;
     size_t rLen;
     size_t rOff;
 
-    UInt8 *wBuf;
+    uint8_t *wBuf;
     size_t wLen;
 
     char *ugBuf;
@@ -550,13 +549,13 @@ StreamSeek(Stream * stream, off_t offset, int whence)
     return result;
 }
 
-int
+bool
 StreamEof(Stream * stream)
 {
     return stream && (stream->flags & STREAM_EOF);
 }
 
-int
+bool
 StreamError(Stream * stream)
 {
     return stream && (stream->flags & STREAM_ERR);
@@ -626,7 +625,7 @@ StreamCopy(Stream * in, Stream * out)
                 }
                 else
                 {
-                    UtilSleepMillis(UInt64Create(0, STREAM_DELAY));
+                    UtilSleepMillis(STREAM_DELAY);
                     continue;
                 }
             }

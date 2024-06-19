@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -212,7 +212,7 @@ Base64Unpad(char *base64, size_t length)
     base64[length] = '\0';
 }
 
-extern int
+bool
 Base64Pad(char **base64Ptr, size_t length)
 {
     char *tmp;
@@ -221,7 +221,7 @@ Base64Pad(char **base64Ptr, size_t length)
 
     if (length % 4 == 0)
     {
-        return length;             /* Success: no padding needed */
+        return true;             /* Success: no padding needed */
     }
 
     newSize = length + (4 - (length % 4));
@@ -229,7 +229,7 @@ Base64Pad(char **base64Ptr, size_t length)
     tmp = Realloc(*base64Ptr, newSize + 100);;
     if (!tmp)
     {
-        return 0;                  /* Memory error */
+        return false;                  /* Memory error */
     }
     *base64Ptr = tmp;
 
@@ -240,5 +240,5 @@ Base64Pad(char **base64Ptr, size_t length)
 
     (*base64Ptr)[newSize] = '\0';
 
-    return newSize;
+    return true;
 }

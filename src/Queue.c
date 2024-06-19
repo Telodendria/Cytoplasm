@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -75,39 +75,39 @@ QueueFree(Queue * q)
     Free(q);
 }
 
-int
+bool
 QueueFull(Queue * q)
 {
     if (!q)
     {
-        return 0;
+        return false;
     }
 
     return ((q->front == q->rear + 1) || (q->front == 0 && q->rear == q->size - 1));
 }
 
-int
+bool
 QueueEmpty(Queue * q)
 {
     if (!q)
     {
-        return 0;
+        return false;
     }
 
-    return q->front == q->size + 1;
+    return (q->front == (q->size + 1));
 }
 
-int
+bool
 QueuePush(Queue * q, void *element)
 {
     if (!q || !element)
     {
-        return 0;
+        return false;
     }
 
     if (QueueFull(q))
     {
-        return 0;
+        return false;
     }
 
     if (q->front == q->size + 1)
@@ -126,7 +126,7 @@ QueuePush(Queue * q, void *element)
 
     q->items[q->rear] = element;
 
-    return 1;
+    return true;
 }
 
 void *

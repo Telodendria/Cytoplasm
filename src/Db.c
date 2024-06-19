@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -23,7 +23,6 @@
  */
 #include <Db.h>
 
-#include <UInt64.h>
 #include <Memory.h>
 #include <Json.h>
 #include <Util.h>
@@ -77,7 +76,7 @@ struct DbRef
 {
     HashMap *json;
 
-    UInt64 ts;
+    uint64_t ts;
     size_t size;
 
     Array *name;
@@ -219,19 +218,38 @@ DbHashKey(Array * args)
     return str;
 }
 
+static char
+DbSanitiseChar(char input)
+{
+    switch (input)
+    {
+        case '/':
+            return '_';
+        case '.':
+            return '-';
+    }
+    return input;
+}
+
 static char *
 DbDirName(Db * db, Array * args, size_t strip)
 {
-    size_t i;
+    size_t i, j;
     char *str = StrConcat(2, db->dir, "/");
 
     for (i = 0; i < ArraySize(args) - strip; i++)
     {
         char *tmp;
+        char *sanitise = StrDuplicate(ArrayGet(args, i));
+        for (j = 0; j < strlen(sanitise); j++)
+        {
+            sanitise[j] = DbSanitiseChar(sanitise[j]);
+        }
 
-        tmp = StrConcat(3, str, ArrayGet(args, i), "/");
+        tmp = StrConcat(3, str, sanitise, "/");
 
         Free(str);
+        Free(sanitise);
 
         str = tmp;
     }
@@ -254,17 +272,7 @@ DbFileName(Db * db, Array * args)
         /* Sanitize name to prevent directory traversal attacks */
         while (arg[j])
         {
-            switch (arg[j])
-            {
-                case '/':
-                    arg[j] = '_';
-                    break;
-                case '.':
-                    arg[j] = '-';
-                    break;
-                default:
-                    break;
-            }
+            arg[j] = DbSanitiseChar(arg[j]);
             j++;
         }
 
@@ -495,12 +503,12 @@ DbLockFromArr(Db * db, Array * args)
 
     if (ref)                       /* In cache */
     {
-        UInt64 diskTs = UtilLastModified(file);
+        uint64_t diskTs = UtilLastModified(file);
 
         ref->fd = fd;
         ref->stream = stream;
 
-        if (UInt64Gt(diskTs, ref->ts))
+        if (diskTs > ref->ts)
         {
             /* File was modified on disk since it was cached */
             HashMap *json = JsonDecode(ref->stream);
@@ -588,7 +596,7 @@ DbLockFromArr(Db * db, Array * args)
 
         if (db->cache)
         {
-            ref->ts = UtilServerTs();
+            ref->ts = UtilTsMillis();
             ref->size = DbComputeSize(ref->json);
             HashMapSet(db->cache, hash, ref);
             db->cacheSize += ref->size;
@@ -652,7 +660,7 @@ DbCreate(Db * db, size_t nArgs,...)
 
     file = DbFileName(db, args);
 
-    if (UInt64Neq(UtilLastModified(file), UInt64Create(0, 0)))
+    if (UtilLastModified(file))
     {
         Free(file);
         ArrayFree(args);
@@ -694,19 +702,19 @@ DbCreate(Db * db, size_t nArgs,...)
     return ret;
 }
 
-int
+bool
 DbDelete(Db * db, size_t nArgs,...)
 {
     va_list ap;
     Array *args;
     char *file;
     char *hash;
-    int ret = 1;
+    bool ret = true;
     DbRef *ref;
 
     if (!db)
     {
-        return 0;
+        return false;
     }
 
     va_start(ap, nArgs);
@@ -755,9 +763,9 @@ DbDelete(Db * db, size_t nArgs,...)
 
     Free(hash);
 
-    if (UInt64Neq(UtilLastModified(file), UInt64Create(0, 0)))
+    if (UtilLastModified(file))
     {
-        ret = remove(file) == 0;
+        ret = (remove(file) == 0);
     }
 
     pthread_mutex_unlock(&db->lock);
@@ -790,14 +798,14 @@ DbLock(Db * db, size_t nArgs,...)
     return ret;
 }
 
-int
+bool
 DbUnlock(Db * db, DbRef * ref)
 {
-    int destroy;
+    bool destroy;
 
     if (!db || !ref)
     {
-        return 0;
+        return false;
     }
 
     lseek(ref->fd, 0L, SEEK_SET);
@@ -806,7 +814,7 @@ DbUnlock(Db * db, DbRef * ref)
         pthread_mutex_unlock(&db->lock);
         Log(LOG_ERR, "Failed to truncate file on disk.");
         Log(LOG_ERR, "Error on fd %d: %s", ref->fd, strerror(errno));
-        return 0;
+        return false;
     }
 
     JsonEncode(ref->json, ref->stream, JSON_DEFAULT);
@@ -827,18 +835,18 @@ DbUnlock(Db * db, DbRef * ref)
              * require some items to be evicted. */
             DbCacheEvict(db);
 
-            destroy = 0;
+            destroy = false;
         }
         else
         {
-            destroy = 1;
+            destroy = true;
         }
 
         Free(key);
     }
     else
     {
-        destroy = 1;
+        destroy = true;
     }
 
     if (destroy)
@@ -850,16 +858,16 @@ DbUnlock(Db * db, DbRef * ref)
     }
 
     pthread_mutex_unlock(&db->lock);
-    return 1;
+    return true;
 }
 
-int
+bool
 DbExists(Db * db, size_t nArgs,...)
 {
     va_list ap;
     Array *args;
     char *file;
-    int ret;
+    bool ret;
 
     va_start(ap, nArgs);
     args = ArrayFromVarArgs(nArgs, ap);
@@ -867,13 +875,13 @@ DbExists(Db * db, size_t nArgs,...)
 
     if (!args)
     {
-        return 0;
+        return false;
     }
 
     pthread_mutex_lock(&db->lock);
 
     file = DbFileName(db, args);
-    ret = UInt64Neq(UtilLastModified(file), UInt64Create(0, 0));
+    ret = (UtilLastModified(file) != 0);
 
     pthread_mutex_unlock(&db->lock);
 
@@ -955,15 +963,15 @@ DbJson(DbRef * ref)
     return ref ? ref->json : NULL;
 }
 
-int
+bool
 DbJsonSet(DbRef * ref, HashMap * json)
 {
     if (!ref || !json)
     {
-        return 0;
+        return false;
     }
 
     JsonFree(ref->json);
     ref->json = JsonDuplicate(json);
-    return 1;
+    return true;
 }

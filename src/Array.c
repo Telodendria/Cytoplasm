@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -38,12 +38,12 @@ struct Array
     size_t size;                   /* Elements actually filled */
 };
 
-int
+bool
 ArrayAdd(Array * array, void *value)
 {
     if (!array)
     {
-        return 0;
+        return false;
     }
 
     return ArrayInsert(array, array->size, value);
@@ -122,14 +122,14 @@ ArrayGet(Array * array, size_t index)
 }
 
 
-extern int
+bool
 ArrayInsert(Array * array, size_t index, void *value)
 {
     size_t i;
 
     if (!array || !value || index > array->size)
     {
-        return 0;
+        return false;
     }
 
     if (array->size >= array->allocated)
@@ -145,7 +145,7 @@ ArrayInsert(Array * array, size_t index, void *value)
         if (!array->entries)
         {
             array->entries = tmp;
-            return 0;
+            return false;
         }
 
         array->allocated = newSize;
@@ -160,7 +160,7 @@ ArrayInsert(Array * array, size_t index, void *value)
 
     array->entries[index] = value;
 
-    return 1;
+    return true;
 }
 
 extern void *
@@ -200,14 +200,14 @@ ArraySize(Array * array)
     return array->size;
 }
 
-int
+bool
 ArrayTrim(Array * array)
 {
     void **tmp;
 
     if (!array)
     {
-        return 0;
+        return false;
     }
 
     tmp = array->entries;
@@ -218,10 +218,10 @@ ArrayTrim(Array * array)
     if (!array->entries)
     {
         array->entries = tmp;
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 static void
@@ -267,8 +267,9 @@ ArrayQuickSort(Array * array, size_t low, size_t high, int (*compare) (void *, v
 void
 ArraySort(Array * array, int (*compare) (void *, void *))
 {
-    if (!array)
+    if (!ArraySize(array))
     {
+        // If a NULL ptr was given, or the array has no elements, do nothing.
         return;
     }
     ArrayQuickSort(array, 0, array->size - 1, compare);

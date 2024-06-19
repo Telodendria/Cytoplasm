@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -295,9 +295,7 @@ TlsClose(void *cookie)
     SSL_free(ssl->ssl);
     SSL_CTX_free(ssl->ctx);
 
-#if 0
     close(ssl->fd);
-#endif
 
     Free(ssl);
 

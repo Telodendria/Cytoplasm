@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -23,6 +23,7 @@
  */
 #include <HttpRouter.h>
 
+#include <Http.h>
 #include <Memory.h>
 #include <HashMap.h>
 #include <Str.h>
@@ -142,7 +143,7 @@ HttpRouterFree(HttpRouter * router)
     Free(router);
 }
 
-int
+bool
 HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 {
     RouteNode *node;
@@ -151,19 +152,19 @@ HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 
     if (!router || !regPath || !exec)
     {
-        return 0;
+        return false;
     }
 
     if (StrEquals(regPath, "/"))
     {
         router->root->exec = exec;
-        return 1;
+        return true;
     }
 
     regPath = StrDuplicate(regPath);
     if (!regPath)
     {
-        return 0;
+        return false;
     }
 
     tmp = regPath;
@@ -186,10 +187,10 @@ HttpRouterAdd(HttpRouter * router, char *regPath, HttpRouteFunc * exec)
 
     Free(regPath);
 
-    return 1;
+    return true;
 }
 
-int
+bool
 HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
 {
     RouteNode *node;
@@ -198,17 +199,17 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
     HttpRouteFunc *exec = NULL;
     Array *matches = NULL;
     size_t i;
-    int retval;
+    bool retval;
 
     if (!router || !path)
     {
-        return 0;
+        return false;
     }
 
     matches = ArrayCreate();
     if (!matches)
     {
-        return 0;
+        return false;
     }
 
     node = router->root;
@@ -228,6 +229,8 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
 
             regmatch_t pmatch[REG_MAX_SUB];
 
+            pathPart = HttpUrlDecode(pathPart);
+
             i = 0;
 
             while (HashMapIterateReentrant(node->children, &key, (void **) &val, &i))
@@ -243,6 +246,7 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
             if (!val)
             {
                 exec = NULL;
+                Free(pathPart);
                 break;
             }
 
@@ -269,13 +273,14 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
                     ArrayAdd(matches, substr);
                 }
             }
+            Free(pathPart);
         }
         Free(path);
     }
 
     if (!exec)
     {
-        retval = 0;
+        retval = false;
         goto finish;
     }
 
@@ -288,7 +293,7 @@ HttpRouterRoute(HttpRouter * router, char *path, void *args, void **ret)
         exec(matches, args);
     }
 
-    retval = 1;
+    retval = true;
 
 finish:
     for (i = 0; i < ArraySize(matches); i++)

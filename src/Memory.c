@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -32,8 +32,6 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include <Int.h>
-
 #ifndef MEMORY_TABLE_CHUNK
 #define MEMORY_TABLE_CHUNK 256
 #endif
@@ -50,12 +48,12 @@ struct MemoryInfo
     void *pointer;
 };
 
-#define MEM_BOUND_TYPE UInt32
+#define MEM_BOUND_TYPE uint32_t
 #define MEM_BOUND 0xDEADBEEF
 
 #define MEM_BOUND_LOWER(p) *((MEM_BOUND_TYPE *) p)
-#define MEM_BOUND_UPPER(p, x) *(((MEM_BOUND_TYPE *) (((UInt8 *) p) + x)) + 1)
-#define MEM_SIZE_ACTUAL(x) (((x) * sizeof(UInt8)) + (2 * sizeof(MEM_BOUND_TYPE)))
+#define MEM_BOUND_UPPER(p, x) *(((MEM_BOUND_TYPE *) (((uint8_t *) p) + x)) + 1)
+#define MEM_SIZE_ACTUAL(x) (((x) * sizeof(uint8_t)) + (2 * sizeof(MEM_BOUND_TYPE)))
 
 static pthread_mutex_t lock;
 static void (*hook) (MemoryAction, MemoryInfo *, void *) = MemoryDefaultHook;

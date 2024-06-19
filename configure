@@ -10,25 +10,46 @@ echo "-------------------"
 BUILD="build"
 OUT="out"
 SRC="src"
-INCLUDE="src/include"
+INCLUDE="include/Cytoplasm"
 TOOLS="tools"
 
-CFLAGS="-Wall -Wextra -pedantic -std=c89 -O3 -pipe -D_DEFAULT_SOURCE -I${INCLUDE}"
-LIBS="-lm -pthread"
+# Default compiler flags. These must be supported by all POSIX C compilers.
+# "Fancy" compilers that have additional options must be detected and set below.
+CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE}"
+LIBS="-lm -lpthread"
 
+# Default args for all platforms.
+SCRIPT_ARGS="--prefix=/usr/local --lib-name=Cytoplasm"
 
-# Set default args for all platforms
-SCRIPT_ARGS="--lib-rtstub=RtStub --prefix=/usr/local --enable-ld-extra --lib-name=Cytoplasm --lib-version=0.4.0 --static $@"
-
-# Set platform specific args
+# Set SSL flags depending on the platform.
 case "$(uname)" in
     OpenBSD)
-        SCRIPT_ARGS="--with-libressl $SCRIPT_ARGS"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-libressl"
         ;;
     *)
-        SCRIPT_ARGS="--with-openssl $SCRIPT_ARGS"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-openssl"
         ;;
 esac
+
+# Set compiler depending on the platform.
+case "$(uname)" in
+    Linux|NetBSD)
+        # These systems typically use GCC.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=gcc"
+        ;;
+    OpenBSD|FreeBSD)
+        # These systems typically use Clang.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=clang"
+        ;;
+    *)
+        # Use default compiler which is required to be present on
+        # all POSIX-compliant systems.
+        SCRIPT_ARGS="${SCRIPT_ARGS} --cc=c99"
+        ;;
+esac
+
+# Append any additional args specified by user
+SCRIPT_ARGS="${SCRIPT_ARGS} $@"
 
 echo "Processing options..."
 echo "Ran with arguments: $SCRIPT_ARGS"
@@ -36,6 +57,17 @@ echo "Ran with arguments: $SCRIPT_ARGS"
 # Process all arguments
 for arg in $SCRIPT_ARGS; do
     case "$arg" in
+        --cc=*)
+            CC=$(echo "$arg" | cut -d '=' -f 2-)
+            case "${CC}" in
+                gcc*|clang*)
+                    # "Fancy" compilers that support a plethora of additional flags we
+                    # want to enable if present.
+                    CFLAGS="-Wall -Wextra -Werror -pedantic -std=c99 -O3 ${CFLAGS}"
+                    LDFLAGS="-flto -fdata-sections -ffunction-sections -s -Wl,-gc-sections"
+                    ;;
+            esac
+            ;;
         --with-openssl)
             TLS_IMPL="TLS_OPENSSL"
             TLS_LIBS="-lcrypto -lssl"
@@ -45,45 +77,23 @@ for arg in $SCRIPT_ARGS; do
             TLS_LIBS="-ltls -lcrypto -lssl"
             ;;
         --disable-tls)
+            TLS_IMPL=""
             TLS_LIBS=""
             ;;
         --prefix=*)
             PREFIX=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
-        --enable-ld-extra)
-            LD_EXTRA="-flto -fdata-sections -ffunction-sections -s -Wl,-gc-sections"
-            ;;
-        --disable-ld-extra)
-            LD_EXTRA=""
-            ;;
         --lib-name=*)
             LIB_NAME=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
-        --lib-version=*)
-            LIB_VERSION=$(echo "$arg" | cut -d '=' -f 2-)
-            ;;
         --enable-debug)
             DEBUG="-O0 -g"
-            echo "Notice: --enable-debug implies --disable-ld-extra and --no-static."
-            echo "You must explicitly provide --enable-ld-extra and/or --static after"
-            echo "specifying --enable-debug if you wish to enable these features in debug mode."
-            LD_EXTRA=""
-            STATIC=""
             ;;
         --disable-debug)
             DEBUG=""
             ;;
-        --lib-rtstub=*)
-            STUB=$(echo "$arg" | cut -d '=' -f 2-)
-            ;;
-        --static)
-            STATIC="-static -Wl,-static"
-            ;;
-        --no-static)
-            STATIC=""
-            ;;
         *)
-            echo "Invalid argument: $1"
+            echo "Invalid argument: $arg"
             exit 1
             ;;
     esac
@@ -94,8 +104,8 @@ if [ -n "$TLS_IMPL" ]; then
     LIBS="${LIBS} ${TLS_LIBS}"
 fi
 
-CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' '-DLIB_VERSION=\"${LIB_VERSION}\"' ${DEBUG}"
-LDFLAGS="${LIBS} ${LD_EXTRA}"
+CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' ${DEBUG}"
+LDFLAGS="${LIBS} ${LDFLAGS}"
 
 #
 # Makefile generation
@@ -127,11 +137,27 @@ print_obj() {
 	printf '%s ' "$2"
 }
 
+get_deps() {
+    src="$1"
+
+    ${CC} -I${INCLUDE} -E "$src" \
+        | grep '^#'              \
+        | awk '{print $3}'       \
+        | cut -d '"' -f 2        \
+        | sort                   \
+        | uniq                   \
+        | grep -v '^[/<]'        \
+        | grep "^${SRC}/"        \
+        | while IFS= read -r dep; do
+        printf "%s " "$dep"
+    done
+}
+
 compile_obj() {
 	src="$1"
 	obj="$2"
 
-	cc -I${INCLUDE} -MM -MT "${obj}" "${src}"
+	echo "${obj}: $(get_deps ${src})"
 	echo "${TAB}@mkdir -p $(dirname ${obj})"
 	echo "${TAB}\$(CC) \$(CFLAGS) -fPIC -c -o \"${obj}\" \"${src}\""
 }
@@ -140,32 +166,46 @@ compile_bin() {
 	src="$1"
 	out="$2"
 
-    echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${OUT}/lib/${LIB_NAME}.o ${src}"
+    echo "${out}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so ${src}"
     echo "${TAB}@mkdir -p ${OUT}/bin"
-    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" ${OUT}/lib/${LIB_NAME}.o -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME} ${STATIC}"
+    echo "${TAB}\$(CC) \$(CFLAGS) -o \"${out}\" \"${src}\" -L${OUT}/lib \$(LDFLAGS) -l${LIB_NAME}"
 }
 
 compile_doc() {
 	src="$1"
 	out="$2"
+    pref="LD_LIBRARY_PATH=${OUT}/lib "
 
 	echo "${out}: ${OUT}/bin/hdoc ${src}"
 	echo "${TAB}@mkdir -p ${OUT}/man/man3"
-	echo "${TAB}${OUT}/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"${src}\" -o \"${out}\""
+	echo "${TAB}${pref}${OUT}/bin/hdoc -D \"Os=${LIB_NAME}\" -i \"${src}\" -o \"${out}\""
 }
 
 install_out() {
 	src="$1"
 	out="$2"
+	dir=$(dirname "$out")
 
-	echo "${TAB}install -D \"$src\" \"$out\""
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
 }
 
 install_man() {
 	src="${OUT}/man/man3/${LIB_NAME}-$(basename $1 .h).3"
 	out="$2"
+    dir=$(dirname "$out")
 
-	echo "${TAB}install -D \"$src\" \"$out\""
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
+}
+
+install_tool() {
+    src=${OUT}/bin/$(basename "$1" .c)
+    out="$2"
+    dir=$(dirname "$out")
+
+	echo "${TAB}mkdir -p \"$dir\""
+	echo "${TAB}cp \"$src\" \"$out\""
 }
 
 uninstall_out() {
@@ -186,6 +226,7 @@ cat << EOF > Makefile
 # Generated by '$0' on $(date).
 # This file should generally not be manually edited.
 
+CC = ${CC}
 PREFIX = ${PREFIX}
 CFLAGS = ${CFLAGS}
 LDFLAGS = ${LDFLAGS}
@@ -212,27 +253,23 @@ ${TAB}    diff -u -p - "LICENSE.txt" | \\
 ${TAB}    patch "\$\$src" | grep -v "^Hmm"; \\
 ${TAB}done
 
-${LIB_NAME}: ${OUT}/lib/${LIB_NAME}.o ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
+${LIB_NAME}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
 
 install: ${LIB_NAME}
-${TAB}install -D ${OUT}/lib/${LIB_NAME}.o \$(PREFIX)/lib/${LIB_NAME}.o
 ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.a \$(PREFIX)/lib/lib${LIB_NAME}.a
 ${TAB}install -D ${OUT}/lib/lib${LIB_NAME}.so \$(PREFIX)/lib/lib${LIB_NAME}.so
 $(collect ${INCLUDE}/ '' '' \$\(PREFIX\)/include/${LIB_NAME}/ install_out)
 $(collect ${INCLUDE}/ .h .3 \$\(PREFIX\)/man/man3/${LIB_NAME}- install_man)
+$(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ install_tool)
 
 uninstall:
-${TAB}rm -r \$(PREFIX)/lib/${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/lib/lib${LIB_NAME}.*
 ${TAB}rm -r \$(PREFIX)/include/${LIB_NAME}
 ${TAB}rm -r \$(PREFIX)/man/man3/${LIB_NAME}-*
+$(collect ${TOOLS}/ '.c' '' \$\(PREFIX\)/bin/ uninstall_out)
 
 clean:
 ${TAB}rm -r "${BUILD}" "${OUT}"
-
-${OUT}/lib/${LIB_NAME}.o: ${BUILD}/${STUB}.o
-${TAB}@mkdir -p ${OUT}/lib
-${TAB}cp ${BUILD}/${STUB}.o ${OUT}/lib/${LIB_NAME}.o
 
 ${OUT}/lib/lib${LIB_NAME}.a: ${OBJS}
 ${TAB}@mkdir -p ${OUT}/lib

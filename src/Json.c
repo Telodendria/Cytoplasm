@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -26,14 +26,15 @@
 #include <Memory.h>
 #include <Str.h>
 #include <Util.h>
-#include <Int.h>
-#include <Int64.h>
 
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
+#include <inttypes.h>
+
 #include <errno.h>
 
 struct JsonValue
@@ -44,9 +45,9 @@ struct JsonValue
         HashMap *object;
         Array *array;
         char *string;
-        Int64 integer;
+        uint64_t integer;
         double floating;
-        int boolean:1;
+        bool boolean;
     } as;
 };
 
@@ -201,7 +202,7 @@ JsonValueAsString(JsonValue * value)
 }
 
 JsonValue *
-JsonValueInteger(Int64 integer)
+JsonValueInteger(uint64_t integer)
 {
     JsonValue *value;
 
@@ -217,12 +218,12 @@ JsonValueInteger(Int64 integer)
     return value;
 }
 
-Int64
+uint64_t
 JsonValueAsInteger(JsonValue * value)
 {
     if (!value || value->type != JSON_INTEGER)
     {
-        return Int64Create(0, 0);
+        return 0;
     }
 
     return value->as.integer;
@@ -258,7 +259,7 @@ JsonValueAsFloat(JsonValue * value)
 }
 
 JsonValue *
-JsonValueBoolean(int boolean)
+JsonValueBoolean(bool boolean)
 {
     JsonValue *value;
 
@@ -274,12 +275,12 @@ JsonValueBoolean(int boolean)
     return value;
 }
 
-int
+bool
 JsonValueAsBoolean(JsonValue * value)
 {
     if (!value || value->type != JSON_BOOLEAN)
     {
-        return 0;
+        return false;
     }
 
     return value->as.boolean;
@@ -335,12 +336,12 @@ JsonValueFree(JsonValue * value)
     Free(value);
 }
 
-int
+size_t
 JsonEncodeString(const char *str, Stream * out)
 {
     size_t i;
     char c;
-    int length = 0;
+    size_t length = 0;
 
     StreamPutc(out, '"');
     length++;
@@ -403,9 +404,9 @@ JsonDecodeString(Stream * in)
     int c;
     char a[5];
 
-    UInt32 codepoint;
-    UInt16 high;
-    UInt16 low;
+    uint32_t codepoint;
+    uint16_t high;
+    uint16_t low;
 
     char *utf8Ptr;
 
@@ -422,7 +423,7 @@ JsonDecodeString(Stream * in)
     {
         if (c <= 0x001F)
         {
-            /* Bad byte; these must  be escaped */
+            /* Bad byte; these must be escaped */
             Free(str);
             return NULL;
         }
@@ -598,15 +599,13 @@ JsonDecodeString(Stream * in)
     return NULL;
 }
 
-int
+size_t
 JsonEncodeValue(JsonValue * value, Stream * out, int level)
 {
     size_t i;
     size_t len;
     Array *arr;
-    int length = 0;
-
-    char ibuf[INT64_STRBUF];
+    size_t length = 0;
 
     switch (value->type)
     {
@@ -644,8 +643,7 @@ JsonEncodeValue(JsonValue * value, Stream * out, int level)
             length += JsonEncodeString(value->as.string, out);
             break;
         case JSON_INTEGER:
-            Int64Str(value->as.integer, 10, ibuf, INT64_STRBUF);
-            length += StreamPrintf(out, "%s", ibuf);
+            length += StreamPrintf(out, "%" PRId64, value->as.integer);
             break;
         case JSON_FLOAT:
             length += StreamPrintf(out, "%f", value->as.floating);
@@ -673,14 +671,14 @@ JsonEncodeValue(JsonValue * value, Stream * out, int level)
     return length;
 }
 
-int
+size_t
 JsonEncode(HashMap * object, Stream * out, int level)
 {
     size_t index;
     size_t count;
     char *key;
     JsonValue *value;
-    int length;
+    size_t length;
 
     if (!object)
     {
@@ -863,6 +861,7 @@ JsonConsumeWhitespace(JsonParserState * state)
             break;
         }
 
+        // TODO: This logic should be moved into Stream as a sync function.
         if (StreamError(state->stream))
         {
             if (errno == EAGAIN)
@@ -876,7 +875,7 @@ JsonConsumeWhitespace(JsonParserState * state)
                 }
                 else
                 {
-                    UtilSleepMillis(UInt64Create(0, delay));
+                    UtilSleepMillis(delay);
                     continue;
                 }
             }
@@ -1123,7 +1122,7 @@ JsonDecodeValue(JsonParserState * state)
     JsonValue *value;
     char *strValue;
 
-    Int64 iValue;
+    int64_t iValue;
     size_t i;
     int neg;
 
@@ -1146,7 +1145,7 @@ JsonDecodeValue(JsonParserState * state)
             Free(strValue);
             break;
         case TOKEN_INTEGER:
-            iValue = Int64Create(0, 0);
+            iValue = 0;
             i = 0;
             neg = 0;
 
@@ -1162,14 +1161,14 @@ JsonDecodeValue(JsonParserState * state)
                 }
 
                 d = state->token[i] - '0';
-                iValue = Int64Mul(iValue, Int64Create(0, 10));
-                iValue = Int64Add(iValue, Int64Create(0, d));
+                iValue *= 10;
+                iValue += d;
                 i++;
             }
 
             if (neg)
             {
-                iValue = Int64Neg(iValue);
+                iValue *= -1;
             }
             value = JsonValueInteger(iValue);
             break;
@@ -1432,4 +1431,33 @@ JsonSet(HashMap * json, JsonValue * newVal, size_t nArgs,...)
 finish:
     va_end(argp);
     return val;
+}
+
+void
+JsonMerge(HashMap *obj1, HashMap *obj2)
+{
+    char *key;
+    JsonValue *val2;
+
+    while (HashMapIterate(obj2, &key, (void **) &val2))
+    {
+        JsonValue *val1 = HashMapGet(obj1, key);
+
+        if (val1)
+        {
+            if (JsonValueType(val1) == JsonValueType(val2) &&
+                JsonValueType(val1) == JSON_OBJECT)
+            {
+                JsonMerge(JsonValueAsObject(val1), JsonValueAsObject(val2));
+            }
+            else
+            {
+                JsonValueFree(HashMapSet(obj1, key, JsonValueDuplicate(val2)));
+            }
+        }
+        else
+        {
+            HashMapSet(obj1, key, JsonValueDuplicate(val2));
+        }
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files
@@ -23,12 +23,12 @@
  */
 #include <Rand.h>
 
-#include <Int.h>
-#include <UInt64.h>
 #include <Util.h>
 #include <Memory.h>
 
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include <pthread.h>
 #include <unistd.h>
 
@@ -42,12 +42,12 @@
 
 typedef struct RandState
 {
-    UInt32 mt[RAND_STATE_VECTOR_LENGTH];
+    uint32_t mt[RAND_STATE_VECTOR_LENGTH];
     int index;
 } RandState;
 
 static void
-RandSeed(RandState * state, UInt32 seed)
+RandSeed(RandState * state, uint32_t seed)
 {
     state->mt[0] = seed & 0xFFFFFFFF;
 
@@ -57,12 +57,12 @@ RandSeed(RandState * state, UInt32 seed)
     }
 }
 
-static UInt32
+static uint32_t
 RandGenerate(RandState * state)
 {
-    static const UInt32 mag[2] = {0x0, 0x9908B0DF};
+    static const uint32_t mag[2] = {0x0, 0x9908B0DF};
 
-    UInt32 result;
+    uint32_t result;
 
     if (state->index >= RAND_STATE_VECTOR_LENGTH || state->index < 0)
     {
@@ -118,22 +118,22 @@ RandDestructor(void *p)
 /* This algorithm therefore computes N random numbers generally in O(N)
  * time, while being less biased. */
 void
-RandIntN(int *buf, size_t size, unsigned int max)
+RandIntN(uint32_t *buf, size_t size, uint32_t max)
 {
     static pthread_key_t stateKey;
-    static int createdKey = 0;
+    static bool createdKey = false;
 
     /* Limit the range to banish all previously biased results */
-    const int allowed = RAND_MAX - RAND_MAX % max;
+    const uint32_t allowed = RAND_MAX - RAND_MAX % max;
 
     RandState *state;
-    int tmp;
+    uint32_t tmp;
     size_t i;
 
     if (!createdKey)
     {
         pthread_key_create(&stateKey, RandDestructor);
-        createdKey = 1;
+        createdKey = true;
     }
 
     state = pthread_getspecific(stateKey);
@@ -141,8 +141,8 @@ RandIntN(int *buf, size_t size, unsigned int max)
     if (!state)
     {
         /* Generate a seed from the system time, PID, and TID */
-        UInt64 ts = UtilServerTs();
-        UInt32 seed = UInt64Low(ts) ^ getpid() ^ (unsigned long) pthread_self();
+        uint64_t ts = UtilTsMillis();
+        uint32_t seed = ts ^ getpid() ^ (unsigned long) pthread_self();
 
         state = Malloc(sizeof(RandState));
         RandSeed(state, seed);
@@ -164,10 +164,10 @@ RandIntN(int *buf, size_t size, unsigned int max)
 }
 
 /* Generate just 1 random number */
-int
-RandInt(unsigned int max)
+uint32_t
+RandInt(uint32_t max)
 {
-    int val = 0;
+    uint32_t val = 0;
 
     RandIntN(&val, 1, max);
     return val;
