@@ -55,7 +55,7 @@ struct MemoryInfo
 
 #define MEM_BOUND_TYPE uint32_t
 #define MEM_BOUND 0xDEADBEEF
-#define MEM_MAGIC 0x4E69746F72697961
+#define MEM_MAGIC 0xDEADBEEFDEADBEEF
 
 #define MEM_BOUND_LOWER(p) *((MEM_BOUND_TYPE *) p)
 #define MEM_BOUND_UPPER(p, x) *(((MEM_BOUND_TYPE *) (((uint8_t *) p) + x)) + 1)
