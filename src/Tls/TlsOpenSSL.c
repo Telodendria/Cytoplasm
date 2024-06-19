@@ -89,6 +89,7 @@ TlsInitClient(int fd, const char *serverName)
 
     cookie->method = TLS_client_method();
     cookie->ctx = SSL_CTX_new(cookie->method);
+    coolie->fd = fd;
     if (!cookie->ctx)
     {
         goto error;
