@@ -71,14 +71,6 @@ TlsInitClient(int fd, const char *serverName)
     OpenSSLCookie *cookie;
     char errorStr[256];
 
-    /*
-     * TODO: Seems odd that this isn't needed to make the
-     * connection... we should figure out how to verify the
-     * certificate matches the server we think we're
-     * connecting to.
-     */
-    (void) serverName;
-
     cookie = Malloc(sizeof(OpenSSLCookie));
     if (!cookie)
     {
@@ -89,12 +81,14 @@ TlsInitClient(int fd, const char *serverName)
 
     cookie->method = TLS_client_method();
     cookie->ctx = SSL_CTX_new(cookie->method);
+    coolie->fd = fd;
     if (!cookie->ctx)
     {
         goto error;
     }
 
     cookie->ssl = SSL_new(cookie->ctx);
+    SSL_set_tlsext_host_name(cookie->ssl, serverName);
     if (!cookie->ssl)
     {
         goto error;
