@@ -621,7 +621,7 @@ HttpParseHeaders(Stream * fp)
 
         strncpy(headerValue, headerPtr, len);
 
-        HashMapSet(headers, headerKey, headerValue);
+        Free(HashMapSet(headers, headerKey, headerValue));
         Free(headerKey);
     }
 
