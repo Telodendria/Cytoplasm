@@ -184,6 +184,8 @@ HashMapDelete(HashMap * map, const char *key)
         if (bucket->hash == hash)
         {
             bucket->hash = 0;
+            Free(bucket->key);
+            bucket->key = NULL;
             return bucket->value;
         }
 
