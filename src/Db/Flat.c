@@ -1,0 +1,274 @@
+#include <Db.h>
+
+#include <Memory.h>
+#include <Json.h>
+#include <Util.h>
+#include <Str.h>
+#include <Stream.h>
+#include <Log.h>
+
+#include <sys/types.h>
+#include <dirent.h>
+
+#include <pthread.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <errno.h>
+#include <string.h>
+
+#include "Db/Internal.h"
+
+typedef struct FlatDb {
+    Db base;
+    char *dir;
+    /* Theres not much to do here. */
+} FlatDb;
+typedef struct FlatDbRef {
+    DbRef base;
+
+    Stream *stream;
+    int fd;
+} FlatDbRef;
+
+static char
+DbSanitiseChar(char input)
+{
+    switch (input)
+    {
+        case '/':
+            return '_';
+        case '.':
+            return '-';
+    }
+    return input;
+}
+
+static char *
+DbDirName(FlatDb * db, Array * args, size_t strip)
+{
+    size_t i, j;
+    char *str = StrConcat(2, db->dir, "/");
+
+    for (i = 0; i < ArraySize(args) - strip; i++)
+    {
+        char *tmp;
+        char *sanitise = StrDuplicate(ArrayGet(args, i));
+        for (j = 0; j < strlen(sanitise); j++)
+        {
+            sanitise[j] = DbSanitiseChar(sanitise[j]);
+        }
+
+        tmp = StrConcat(3, str, sanitise, "/");
+
+        Free(str);
+        Free(sanitise);
+
+        str = tmp;
+    }
+
+    return str;
+}
+static char *
+DbFileName(FlatDb * db, Array * args)
+{
+    size_t i;
+    char *str = StrConcat(2, db->dir, "/");
+
+    for (i = 0; i < ArraySize(args); i++)
+    {
+        char *tmp;
+        char *arg = StrDuplicate(ArrayGet(args, i));
+        size_t j = 0;
+
+        /* Sanitize name to prevent directory traversal attacks */
+        while (arg[j])
+        {
+            arg[j] = DbSanitiseChar(arg[j]);
+            j++;
+        }
+
+        tmp = StrConcat(3, str, arg,
+                        (i < ArraySize(args) - 1) ? "/" : ".json");
+
+        Free(arg);
+        Free(str);
+
+        str = tmp;
+    }
+
+    return str;
+}
+
+static DbRef *
+FlatLock(Db *d, Array *dir)
+{
+    FlatDb *db = (FlatDb *) d;
+    FlatDbRef *ref = NULL;
+    size_t i;
+    char *path;
+    if (!d || !dir)
+    {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&d->lock);
+    path = DbFileName(db, dir);
+    /* TODO: Caching */
+    {
+        int fd = open(path, O_RDWR);
+        Stream *stream;
+        struct flock lock;
+        if (fd == -1)
+        {
+            ref = NULL;
+            goto end;
+        }
+
+        stream = StreamFd(fd);
+        
+        lock.l_start = 0;
+        lock.l_len = 0;
+        lock.l_type = F_WRLCK;
+        lock.l_whence = SEEK_SET;
+
+        if (fcntl(fd, F_SETLK, &lock) < 0)
+        {
+            StreamClose(stream);
+            ref = NULL;
+            goto end;
+        }
+
+        ref = Malloc(sizeof(*ref));
+        DbRefInit(d, &(ref->base));
+        ref->fd = fd;
+        ref->stream = stream;
+        ref->base.ts = UtilLastModified(path);
+        ref->base.json = JsonDecode(stream);
+        if (!ref->base.json)
+        {
+            Free(ref);
+            StreamClose(stream);
+            ref = NULL;
+            goto end;
+        }
+        
+        
+        ref->base.name = ArrayCreate();
+        for (i = 0; i < ArraySize(dir); i++)
+        {
+            ArrayAdd(
+                ref->base.name, 
+                StrDuplicate(ArrayGet(dir, i))
+            );
+        }
+    }
+end:
+    Free(path);
+    if (!ref)
+    {
+        pthread_mutex_unlock(&d->lock);
+    }
+    return (DbRef *) ref;
+}
+
+static bool
+FlatUnlock(Db *d, DbRef *r)
+{
+    FlatDbRef *ref = (FlatDbRef *) r;
+
+    if (!d || !r)
+    {
+        return false;
+    }
+
+    lseek(ref->fd, 0L, SEEK_SET);
+    if (ftruncate(ref->fd, 0) < 0)
+    {
+        pthread_mutex_unlock(&d->lock);
+        Log(LOG_ERR, "Failed to truncate file on disk.");
+        Log(LOG_ERR, "Error on fd %d: %s", ref->fd, strerror(errno));
+        return false;
+    }
+
+    JsonEncode(ref->base.json, ref->stream, JSON_DEFAULT);
+    StreamClose(ref->stream);
+
+    JsonFree(ref->base.json);
+    StringArrayFree(ref->base.name);
+    Free(ref);
+
+    pthread_mutex_unlock(&d->lock);
+    return true;
+}
+static DbRef *
+FlatCreate(Db *d, Array *dir)
+{
+    FlatDb *db = (FlatDb *) d;
+    char *path, *dirPath;
+    Stream *fp;
+    DbRef *ret;
+
+    if (!d || !dir)
+    {
+        return NULL;
+    }
+    pthread_mutex_lock(&d->lock);
+
+    path = DbFileName(db, dir);
+    if (UtilLastModified(path))
+    {
+        Free(path);
+        pthread_mutex_unlock(&d->lock);
+        return NULL;
+    }
+
+    dirPath = DbDirName(db, dir, 1);
+    if (UtilMkdir(dirPath, 0750) < 0)
+    {
+        Free(path);
+        Free(dirPath);
+        pthread_mutex_unlock(&d->lock);
+        return NULL;
+    }
+    Free(dirPath);
+
+    fp = StreamOpen(path, "w");
+    Free(path);
+    if (!fp)
+    {
+        pthread_mutex_unlock(&d->lock);
+        return NULL;
+    }
+
+    StreamPuts(fp, "{}");
+    StreamClose(fp);
+
+    /* FlatLock() will lock again for us */
+    pthread_mutex_unlock(&d->lock);
+
+    ret = FlatLock(d, dir);
+
+    return ret;
+}
+
+Db *
+DbOpen(char *dir, size_t cache)
+{
+    FlatDb *db;
+    if (!dir)
+    {
+        return NULL;
+    }
+    db = Malloc(sizeof(*db));
+    DbInit(&(db->base));
+    db->dir = dir;
+    db->base.cacheSize = cache;
+
+    db->base.lockFunc = FlatLock;
+    db->base.unlock = FlatUnlock;
+    db->base.create = FlatCreate;
+    db->base.close = NULL;
+
+    return (Db *) db;
+}

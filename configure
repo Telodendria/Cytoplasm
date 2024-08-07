@@ -15,7 +15,7 @@ TOOLS="tools"
 
 # Default compiler flags. These must be supported by all POSIX C compilers.
 # "Fancy" compilers that have additional options must be detected and set below.
-CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE}"
+CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE} -I${SRC}";
 LIBS="-lm -lpthread"
 
 # Default args for all platforms.
@@ -153,7 +153,7 @@ print_obj() {
 get_deps() {
     src="$1"
 
-    ${CC} -I${INCLUDE} -E "$src" \
+    ${CC} -I${SRC} -I${INCLUDE} -E "$src" \
         | grep '^#'              \
         | awk '{print $3}'       \
         | cut -d '"' -f 2        \

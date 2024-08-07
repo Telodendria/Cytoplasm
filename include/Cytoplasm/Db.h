@@ -69,6 +69,15 @@ typedef struct DbRef DbRef;
 extern Db * DbOpen(char *, size_t);
 
 /**
+ * Open a LMDB data directory. This function is similar to 
+ * .Fn DbOpen ,
+ * but works with a LMDB-based backend, with the second argument 
+ * being the maximum filesize. This function fails with NULL if ever 
+ * called without LMDB enabled at compiletime.
+ */
+extern Db * DbOpenLMDB(char *, size_t);
+
+/**
  * Close the database. This function will flush anything in the cache
  * to the disk, and then close the data directory. It assumes that
  * all references have been unlocked. If a reference has not been
