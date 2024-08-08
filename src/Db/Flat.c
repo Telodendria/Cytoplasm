@@ -252,6 +252,100 @@ FlatCreate(Db *d, Array *dir)
     return ret;
 }
 
+static bool
+FlatDelete(Db *d, Array *dir)
+{
+    bool ret = true;
+    char *file;
+    FlatDb *db = (FlatDb *) d;
+    if (!d || !dir)
+    {
+        return false;
+    }
+
+    pthread_mutex_lock(&d->lock);
+    file = DbFileName(db, dir);
+
+    /* TODO: Unlink the entry from the linkedlist */
+    if (UtilLastModified(file))
+    {
+        ret = remove(file) == 0;
+    }
+
+    Free(file);
+    pthread_mutex_lock(&d->lock);
+    return ret;
+}
+
+static Array *
+FlatList(Db *d, Array *dir)
+{
+    FlatDb *db = (FlatDb *) d;
+    struct dirent *file;
+    Array *ret;
+    DIR *files;
+    char *path;
+
+    if (!d || !dir)
+    {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&d->lock);
+
+    path = DbDirName(db, dir, 0);
+    files = opendir(path);
+    if (!files)
+    {
+        Free(path);
+        pthread_mutex_unlock(&d->lock);
+        return NULL;
+    }
+
+    ret = ArrayCreate();
+    while ((file = readdir(files)))
+    {
+        size_t namlen = strlen(file->d_name);
+
+        if (namlen > 5)
+        {
+            int nameOffset = namlen - 5;
+
+            if (StrEquals(file->d_name + nameOffset, ".json"))
+            {
+                file->d_name[nameOffset] = '\0';
+                StringArrayAppend(ret, file->d_name);
+            }
+        }
+    }
+    closedir(files);
+    Free(path);
+
+    pthread_mutex_unlock(&d->lock);
+    return ret;
+}
+static bool
+FlatExists(Db *d, Array *dir)
+{
+    FlatDb *db = (FlatDb *) d;
+    char *path;
+    bool ret;
+    if (!d || !dir)
+    {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&d->lock);
+
+    path = DbFileName(db, dir);
+    ret = UtilLastModified(path) != 0;
+    Free(path);
+
+    pthread_mutex_unlock(&d->lock);
+
+    return ret;
+}
+
 Db *
 DbOpen(char *dir, size_t cache)
 {
@@ -268,6 +362,9 @@ DbOpen(char *dir, size_t cache)
     db->base.lockFunc = FlatLock;
     db->base.unlock = FlatUnlock;
     db->base.create = FlatCreate;
+    db->base.delete = FlatDelete;
+    db->base.exists = FlatExists;
+    db->base.list   = FlatList;
     db->base.close = NULL;
 
     return (Db *) db;

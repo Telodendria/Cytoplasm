@@ -292,15 +292,9 @@ DbCreate(Db * db, size_t nArgs,...)
 bool
 DbDelete(Db * db, size_t nArgs,...)
 {
-    (void) nArgs;
-    (void) db;
-    /* TODO */
-    /*va_list ap;
+    va_list ap;
     Array *args;
-    char *file;
-    char *hash;
     bool ret = true;
-    DbRef *ref;
 
     if (!db)
     {
@@ -311,59 +305,10 @@ DbDelete(Db * db, size_t nArgs,...)
     args = ArrayFromVarArgs(nArgs, ap);
     va_end(ap);
 
-    pthread_mutex_lock(&db->lock);
-
-    hash = DbHashKey(args);
-    file = DbFileName(db, args);
-
-    ref = HashMapGet(db->cache, hash);
-    if (ref)
-    {
-        HashMapDelete(db->cache, hash);
-        JsonFree(ref->json);
-        StringArrayFree(ref->name);
-
-        db->cacheSize -= ref->size;
-
-        if (ref->next)
-        {
-            ref->next->prev = ref->prev;
-        }
-        else
-        {
-            db->mostRecent = ref->prev;
-        }
-
-        if (ref->prev)
-        {
-            ref->prev->next = ref->next;
-        }
-        else
-        {
-            db->leastRecent = ref->next;
-        }
-
-        if (!db->leastRecent)
-        {
-            db->leastRecent = db->mostRecent;
-        }
-
-        Free(ref);
-    }
-
-    Free(hash);
-
-    if (UtilLastModified(file))
-    {
-        ret = (remove(file) == 0);
-    }
-
-    pthread_mutex_unlock(&db->lock);
+    ret = db->delete(db, args);
 
     ArrayFree(args);
-    Free(file);
-    return ret;*/
-    return false;
+    return ret;
 }
 
 DbRef *
@@ -403,13 +348,13 @@ DbUnlock(Db * db, DbRef * ref)
 bool
 DbExists(Db * db, size_t nArgs,...)
 {
-    (void) nArgs;
-    (void) db;
-    return false;
-    /*va_list ap;
+    va_list ap;
     Array *args;
-    char *file;
     bool ret;
+    if (!db || !nArgs || !db->exists)
+    {
+        return false;
+    }
 
     va_start(ap, nArgs);
     args = ArrayFromVarArgs(nArgs, ap);
@@ -420,81 +365,32 @@ DbExists(Db * db, size_t nArgs,...)
         return false;
     }
 
-    pthread_mutex_lock(&db->lock);
-
-    file = DbFileName(db, args);
-    ret = (UtilLastModified(file) != 0);
-
-    pthread_mutex_unlock(&db->lock);
-
-    Free(file);
+    ret = db->exists(db, args);
     ArrayFree(args);
 
-    return ret;*/
+    return ret;
 }
 
 Array *
 DbList(Db * db, size_t nArgs,...)
 {
-    (void) db;
-    (void) nArgs;
-    /* TODO */
-    /*Array *result;
+    Array *result;
     Array *path;
-    DIR *files;
-    struct dirent *file;
-    char *dir;
     va_list ap;
 
-    if (!db || !nArgs)
-    {
-        return NULL;
-    }
-
-    result = ArrayCreate();
-    if (!result)
+    if (!db || !nArgs || !db->list)
     {
         return NULL;
     }
 
     va_start(ap, nArgs);
     path = ArrayFromVarArgs(nArgs, ap);
-    dir = DbDirName(db, path, 0);
+    va_end(ap);
 
-    pthread_mutex_lock(&db->lock);
-
-    files = opendir(dir);
-    if (!files)
-    {
-        ArrayFree(path);
-        ArrayFree(result);
-        Free(dir);
-        pthread_mutex_unlock(&db->lock);
-        return NULL;
-    }
-    while ((file = readdir(files)))
-    {
-        size_t namlen = strlen(file->d_name);
-
-        if (namlen > 5)
-        {
-            int nameOffset = namlen - 5;
-
-            if (StrEquals(file->d_name + nameOffset, ".json"))
-            {
-                file->d_name[nameOffset] = '\0';
-                ArrayAdd(result, StrDuplicate(file->d_name));
-            }
-        }
-    }
-    closedir(files);
-
+    result = db->list(db, path);
+    
     ArrayFree(path);
-    Free(dir);
-    pthread_mutex_unlock(&db->lock);
-
-    return result;*/
-    return NULL;
+    return result;
 }
 
 void
@@ -573,4 +469,13 @@ DbRefInit(Db *db, DbRef *ref)
         db->leastRecent = ref;
     }
     db->mostRecent = ref;
+}
+void
+StringArrayAppend(Array *arr, char *str)
+{
+    if (!arr || !str)
+    {
+        return;
+    }
+    ArrayAdd(arr, StrDuplicate(str));
 }

@@ -64,11 +64,14 @@ struct Db
     DbRef *mostRecent;
     DbRef *leastRecent;
 
-    /* TODO: Functions for implementation-specific operations
+    /* Functions for implementation-specific operations
      * (opening a ref, closing a db, removing an entry, ...) */
     DbRef * (*lockFunc)(Db *, Array *);
     DbRef * (*create)(Db *, Array *);
+    Array * (*list)(Db *, Array *);
     bool (*unlock)(Db *, DbRef *);
+    bool (*delete)(Db *, Array *);
+    bool (*exists)(Db *, Array *);
     void (*close)(Db *);
 
     /* Implementation-specific constructs */
@@ -94,5 +97,6 @@ struct DbRef
 extern void DbInit(Db *);
 extern void DbRefInit(Db *, DbRef *);
 extern void StringArrayFree(Array *);
+extern void StringArrayAppend(Array *, char *);
 
 #endif
