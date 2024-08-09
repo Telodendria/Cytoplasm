@@ -86,6 +86,53 @@ LMDBDecode(MDB_val val)
 
     return ret;
 }
+static bool
+LMDBKeyStartsWith(MDB_val key, MDB_val starts)
+{
+    size_t i;
+    if (!key.mv_size || !starts.mv_size)
+    {
+        return false;
+    }
+    if (key.mv_size < starts.mv_size)
+    {
+        return false;
+    }
+
+    for (i = 0; i < starts.mv_size; i++)
+    {
+        char keyC = ((char *) key.mv_data)[i];
+        char startC = ((char *) starts.mv_data)[i];
+
+        if (keyC != startC)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+static char *
+LMDBKeyHead(MDB_val key)
+{
+    char *end;
+    if (!key.mv_size || !key.mv_data)
+    {
+        return NULL;
+    }
+    /* -2 because we have a NULL byte in there */
+    end = ((char *) key.mv_data) + key.mv_size - 1;
+    if ((void *) end < key.mv_data)
+    {
+        /* Uh oh. */
+        return NULL;
+    }
+
+    while ((void *) (end - 1) >= key.mv_data && *(end - 1))
+    {
+        end--;
+    }
+    return end;
+}
 
 static DbRef *
 LMDBLock(Db *d, Array *k)
@@ -291,7 +338,7 @@ LMDBUnlock(Db *d, DbRef *r)
     StreamFlush(stream);
     StreamClose(stream);
 
-    mdb_put(ref->transaction, ref->dbi, &key, &val, 0);
+    ret = mdb_put(ref->transaction, ref->dbi, &key, &val, 0) == 0;
 
     mdb_txn_commit(ref->transaction);
     mdb_dbi_close(db->environ, ref->dbi);
@@ -392,6 +439,89 @@ end:
     return (DbRef *) ret;
 }
 
+static Array *
+LMDBList(Db *d, Array *k)
+{
+    LMDB *db = (LMDB *) d;
+    MDB_val key = { 0 };
+    MDB_val subKey;
+    MDB_val val;
+    Array *ret = NULL;
+
+    MDB_cursor *cursor;
+    MDB_cursor_op op = MDB_SET_RANGE;
+    MDB_txn *txn;
+    MDB_dbi dbi;
+    int code;
+
+    if (!d || !k)
+    {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&d->lock);
+
+    if ((code = mdb_txn_begin(db->environ, NULL, 0, &txn)) != 0)
+    {
+        /* Very bad! */
+        Log(LOG_ERR,
+            "%s: could not begin transaction: %s",
+            __func__, mdb_strerror(code)
+        );
+        goto end;
+    }
+    /* apparently you need to give it a dbi */
+    if ((code = mdb_dbi_open(txn, "db", MDB_CREATE, &dbi)) != 0)
+    {
+        Log(LOG_ERR,
+            "%s: could not get transaction dbi: %s",
+            __func__, mdb_strerror(code)
+        );
+        mdb_txn_abort(txn);
+        goto end;
+    }
+    if ((code = mdb_cursor_open(txn, dbi, &cursor)) != 0)
+    {
+        Log(LOG_ERR,
+            "%s: could not get cursor: %s",
+            __func__, mdb_strerror(code)
+        );
+        mdb_txn_abort(txn);
+        mdb_dbi_close(db->environ, dbi);
+        goto end;
+    }
+
+    key = LMDBTranslateKey(k);
+
+    /* Small hack to get it to list subitems */
+    ((char *) key.mv_data)[0]++;
+
+    ret = ArrayCreate();
+    subKey = key;
+    while (mdb_cursor_get(cursor, &subKey, &val, op) == 0)
+    {
+        /* This searches by *increasing* order. The problem is that it may 
+         * extend to unwanted points. Since the values are sorted, we can 
+         * just exit if the subkey is incorrect. */
+        char *head = LMDBKeyHead(subKey);
+        if (!LMDBKeyStartsWith(subKey, key))
+        {
+            break;
+        }
+
+        StringArrayAppend(ret, head);
+        op = MDB_NEXT;
+    }
+
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    mdb_dbi_close(db->environ, dbi);
+
+end:
+    LMDBKillKey(key);
+    pthread_mutex_unlock(&d->lock);
+    return ret;
+}
 
 /* Implementation functions */
 static void
@@ -459,7 +589,7 @@ DbOpenLMDB(char *dir, size_t size)
     db->base.delete = LMDBDelete;
     db->base.exists = LMDBExists;
     db->base.close = LMDBClose;
-    db->base.list = NULL; /* TODO: This one is gonna be Fun. */
+    db->base.list = LMDBList; /* TODO: This one is gonna be Fun. */
     
     return (Db *) db;
 }
