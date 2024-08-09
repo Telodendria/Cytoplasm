@@ -113,7 +113,7 @@ if [ -n "$TLS_IMPL" ]; then
 fi
 
 if [ -n "$EDB_IMPL" ]; then
-    CFLAGS="${CFLAGS} -DEDB_IMPL=${EDB_IMPL}"
+    CFLAGS="${CFLAGS} -D${EDB_IMPL}"
     LIBS="${LIBS} ${EDB_LIBS}"
 fi
 

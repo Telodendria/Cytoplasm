@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef EDB_IMPL
+#ifdef EDB_LMDB
 
 #include <lmdb.h>
 
@@ -568,7 +568,7 @@ DbOpenLMDB(char *dir, size_t size)
         return NULL;
     }
     mdb_env_set_maxdbs(env, 4);
-    if ((code = mdb_env_open(env, dir, 0, 0644)) != 0)
+    if ((code = mdb_env_open(env, dir, MDB_NOTLS, 0644)) != 0)
     {
         Log(LOG_ERR, 
             "%s: could not open LMDB env: %s",
@@ -589,7 +589,7 @@ DbOpenLMDB(char *dir, size_t size)
     db->base.delete = LMDBDelete;
     db->base.exists = LMDBExists;
     db->base.close = LMDBClose;
-    db->base.list = LMDBList; /* TODO: This one is gonna be Fun. */
+    db->base.list = LMDBList;
     
     return (Db *) db;
 }
