@@ -159,7 +159,6 @@ LMDBLock(Db *d, Array *k)
             "%s: could not begin transaction: %s",
             __func__, mdb_strerror(code)
         );
-        pthread_mutex_unlock(&d->lock);
         goto end;
     }
     /* apparently you need to give it a dbi */
@@ -169,9 +168,7 @@ LMDBLock(Db *d, Array *k)
             "%s: could not get transaction dbi: %s",
             __func__, mdb_strerror(code)
         );
-        pthread_mutex_unlock(&d->lock);
         goto end;
-
     }
 
     empty_json.mv_size = 0;
@@ -180,10 +177,7 @@ LMDBLock(Db *d, Array *k)
     code = mdb_get(transaction, dbi, &key, &empty_json);
     if (code == MDB_NOTFOUND)
     {
-        Log(LOG_ERR, 
-            "%s: mdb_get failure: %s", 
-            __func__, mdb_strerror(code)
-        );
+        /* No use logging it, as that is just locking behaviour */
         mdb_txn_abort(transaction);
         mdb_dbi_close(db->environ, dbi);
         goto end;
@@ -215,6 +209,10 @@ LMDBLock(Db *d, Array *k)
     ret->transaction = transaction;
     ret->dbi = dbi;
 end:
+    if (!ret)
+    {
+        pthread_mutex_unlock(&d->lock);
+    }
     LMDBKillKey(key);
     return (DbRef *) ret;
 }
@@ -351,7 +349,10 @@ LMDBUnlock(Db *d, DbRef *r)
     {
         free(val.mv_data);
     }
-    pthread_mutex_unlock(&d->lock);
+    if (ret)
+    {
+        pthread_mutex_unlock(&d->lock);
+    }
     return ret;
 }
 static DbRef *
@@ -379,7 +380,6 @@ LMDBCreate(Db *d, Array *k)
             "%s: could not begin transaction: %s",
             __func__, mdb_strerror(code)
         );
-        pthread_mutex_unlock(&d->lock);
         goto end;
     }
     /* apparently you need to give it a dbi */
@@ -389,7 +389,6 @@ LMDBCreate(Db *d, Array *k)
             "%s: could not get transaction dbi: %s",
             __func__, mdb_strerror(code)
         );
-        pthread_mutex_unlock(&d->lock);
         goto end;
 
     }
@@ -435,6 +434,10 @@ LMDBCreate(Db *d, Array *k)
     ret->transaction = transaction;
     ret->dbi = dbi;
 end:
+    if (!ret)
+    {
+        pthread_mutex_unlock(&d->lock);
+    }
     LMDBKillKey(key);
     return (DbRef *) ret;
 }
