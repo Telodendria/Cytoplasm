@@ -434,6 +434,7 @@ DbInit(Db *db)
     db->mostRecent = NULL;
     db->leastRecent = NULL;
     db->cacheSize = 0;
+    db->maxCache = 0;
 
     if (db->maxCache)
     {
@@ -460,15 +461,9 @@ DbRefInit(Db *db, DbRef *ref)
     ref->ts = UtilTsMillis();
     ref->size = 0;
 
-    if (db->mostRecent)
-    {
-        db->mostRecent->next = ref;
-    }
-    if (!db->leastRecent)
-    {
-        db->leastRecent = ref;
-    }
-    db->mostRecent = ref;
+    /* TODO: Append the ref to the cache list.
+     * I removed it because it broke everything and crashed all the time.
+     * My bad! */
 }
 void
 StringArrayAppend(Array *arr, char *str)

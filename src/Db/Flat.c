@@ -106,7 +106,7 @@ FlatLock(Db *d, Array *dir)
     FlatDb *db = (FlatDb *) d;
     FlatDbRef *ref = NULL;
     size_t i;
-    char *path;
+    char *path = NULL;
     if (!d || !dir)
     {
         return NULL;
@@ -126,6 +126,11 @@ FlatLock(Db *d, Array *dir)
         }
 
         stream = StreamFd(fd);
+        if (!stream)
+        {
+            ref = NULL;
+            goto end;
+        }
         
         lock.l_start = 0;
         lock.l_len = 0;
@@ -140,11 +145,11 @@ FlatLock(Db *d, Array *dir)
         }
 
         ref = Malloc(sizeof(*ref));
-        DbRefInit(d, &(ref->base));
-        ref->fd = fd;
-        ref->stream = stream;
+        DbRefInit(d, (DbRef *) ref);
         ref->base.ts = UtilLastModified(path);
         ref->base.json = JsonDecode(stream);
+        ref->stream = stream;
+        ref->fd = fd;
         if (!ref->base.json)
         {
             Free(ref);
@@ -157,10 +162,7 @@ FlatLock(Db *d, Array *dir)
         ref->base.name = ArrayCreate();
         for (i = 0; i < ArraySize(dir); i++)
         {
-            ArrayAdd(
-                ref->base.name, 
-                StrDuplicate(ArrayGet(dir, i))
-            );
+            StringArrayAppend(ref->base.name, ArrayGet(dir, i));
         }
     }
 end:
@@ -246,7 +248,6 @@ FlatCreate(Db *d, Array *dir)
 
     /* FlatLock() will lock again for us */
     pthread_mutex_unlock(&d->lock);
-
     ret = FlatLock(d, dir);
 
     return ret;
@@ -255,7 +256,7 @@ FlatCreate(Db *d, Array *dir)
 static bool
 FlatDelete(Db *d, Array *dir)
 {
-    bool ret = true;
+    bool ret = false;
     char *file;
     FlatDb *db = (FlatDb *) d;
     if (!d || !dir)
@@ -273,7 +274,7 @@ FlatDelete(Db *d, Array *dir)
     }
 
     Free(file);
-    pthread_mutex_lock(&d->lock);
+    pthread_mutex_unlock(&d->lock);
     return ret;
 }
 
@@ -355,7 +356,7 @@ DbOpen(char *dir, size_t cache)
         return NULL;
     }
     db = Malloc(sizeof(*db));
-    DbInit(&(db->base));
+    DbInit((Db *) db);
     db->dir = dir;
     db->base.cacheSize = cache;
 
