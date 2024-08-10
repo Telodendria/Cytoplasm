@@ -464,7 +464,9 @@ LMDBList(Db *d, Array *k)
 
     pthread_mutex_lock(&d->lock);
 
-    if ((code = mdb_txn_begin(db->environ, NULL, 0, &txn)) != 0)
+    /* Marked as read-only, as we just don't need to write anything 
+     * when listing */
+    if ((code = mdb_txn_begin(db->environ, NULL, MDB_RDONLY, &txn)) != 0)
     {
         /* Very bad! */
         Log(LOG_ERR,
