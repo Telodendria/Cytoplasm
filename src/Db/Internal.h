@@ -66,7 +66,7 @@ struct Db
 
     /* Functions for implementation-specific operations
      * (opening a ref, closing a db, removing an entry, ...) */
-    DbRef * (*lockFunc)(Db *, Array *);
+    DbRef * (*lockFunc)(Db *, DbHint, Array *);
     DbRef * (*create)(Db *, Array *);
     Array * (*list)(Db *, Array *);
     bool (*unlock)(Db *, DbRef *);
@@ -89,8 +89,7 @@ struct DbRef
     DbRef *prev;
     DbRef *next;
 
-    /* TODO: Functions for implementation-specific operations */
-
+    DbHint hint;
     /* Implementation-specific constructs */
 };
 

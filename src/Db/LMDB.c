@@ -135,14 +135,14 @@ LMDBKeyHead(MDB_val key)
 }
 
 static DbRef *
-LMDBLock(Db *d, Array *k)
+LMDBLock(Db *d, DbHint hint, Array *k)
 {
     LMDB *db = (LMDB *) d;
     MDB_txn *transaction;
     LMDBRef *ret = NULL;
     MDB_val key, empty_json;
     MDB_dbi dbi;
-    int code;
+    int code, flags;
     if (!d || !k)
     {
         return NULL;
@@ -152,7 +152,8 @@ LMDBLock(Db *d, Array *k)
     key = LMDBTranslateKey(k);
 
     /* create a txn */
-    if ((code = mdb_txn_begin(db->environ, NULL, 0, &transaction)) != 0)
+    flags = hint == DB_HINT_READONLY ? MDB_RDONLY : 0;
+    if ((code = mdb_txn_begin(db->environ, NULL, flags, &transaction)) != 0)
     {
         /* Very bad! */
         Log(LOG_ERR,
@@ -206,10 +207,21 @@ LMDBLock(Db *d, Array *k)
         }
     }
     ret->base.json = LMDBDecode(empty_json);
-    ret->transaction = transaction;
-    ret->dbi = dbi;
+    ret->base.hint = hint;
+    ret->transaction = NULL;
+
+    if (hint == DB_HINT_WRITE)
+    {
+        ret->transaction = transaction;
+        ret->dbi = dbi;
+    }
+    else
+    {
+        mdb_txn_abort(transaction);
+        mdb_dbi_close(db->environ, dbi);
+    }
 end:
-    if (!ret)
+    if (!ret || hint == DB_HINT_READONLY)
     {
         pthread_mutex_unlock(&d->lock);
     }
@@ -319,7 +331,7 @@ LMDBUnlock(Db *d, DbRef *r)
     FILE *fakestream;
     Stream *stream;
     MDB_val key, val;
-    bool ret;
+    bool ret = true;
 
     if (!d || !r)
     {
@@ -328,28 +340,31 @@ LMDBUnlock(Db *d, DbRef *r)
 
     val.mv_data = NULL;
     val.mv_size = 0;
-    key = LMDBTranslateKey(r->name);
+    if (ref->transaction && r->hint == DB_HINT_WRITE)
+    {
+        key = LMDBTranslateKey(r->name);
 
-    fakestream = open_memstream((char **) &val.mv_data, &val.mv_size);
-    stream = StreamFile(fakestream);
-    JsonEncode(r->json, stream, JSON_DEFAULT);
-    StreamFlush(stream);
-    StreamClose(stream);
+        fakestream = open_memstream((char **) &val.mv_data, &val.mv_size);
+        stream = StreamFile(fakestream);
+        JsonEncode(r->json, stream, JSON_DEFAULT);
+        StreamFlush(stream);
+        StreamClose(stream);
 
-    ret = mdb_put(ref->transaction, ref->dbi, &key, &val, 0) == 0;
+        ret = mdb_put(ref->transaction, ref->dbi, &key, &val, 0) == 0;
 
-    mdb_txn_commit(ref->transaction);
-    mdb_dbi_close(db->environ, ref->dbi);
+        mdb_txn_commit(ref->transaction);
+        mdb_dbi_close(db->environ, ref->dbi);
+        LMDBKillKey(key);
+    }
     StringArrayFree(ref->base.name);
     JsonFree(ref->base.json);
     Free(ref);
 
-    LMDBKillKey(key);
     if (val.mv_data)
     {
         free(val.mv_data);
     }
-    if (ret)
+    if (ret && r->hint == DB_HINT_WRITE)
     {
         pthread_mutex_unlock(&d->lock);
     }
@@ -430,6 +445,7 @@ LMDBCreate(Db *d, Array *k)
             StringArrayAppend(ret->base.name, ent);
         }
     }
+    ret->base.hint = DB_HINT_WRITE;
     ret->base.json = HashMapCreate();
     ret->transaction = transaction;
     ret->dbi = dbi;
@@ -464,6 +480,8 @@ LMDBList(Db *d, Array *k)
 
     pthread_mutex_lock(&d->lock);
 
+    /* Marked as read-only, as we just don't need to write anything 
+     * when listing */
     if ((code = mdb_txn_begin(db->environ, NULL, 0, &txn)) != 0)
     {
         /* Very bad! */

@@ -101,7 +101,7 @@ DbFileName(FlatDb * db, Array * args)
 }
 
 static DbRef *
-FlatLock(Db *d, Array *dir)
+FlatLock(Db *d, DbHint hint, Array *dir)
 {
     FlatDb *db = (FlatDb *) d;
     FlatDbRef *ref = NULL;
@@ -146,6 +146,8 @@ FlatLock(Db *d, Array *dir)
 
         ref = Malloc(sizeof(*ref));
         DbRefInit(d, (DbRef *) ref);
+        /* TODO: Hints */
+        ref->base.hint = hint;
         ref->base.ts = UtilLastModified(path);
         ref->base.json = JsonDecode(stream);
         ref->stream = stream;
@@ -248,7 +250,7 @@ FlatCreate(Db *d, Array *dir)
 
     /* FlatLock() will lock again for us */
     pthread_mutex_unlock(&d->lock);
-    ret = FlatLock(d, dir);
+    ret = FlatLock(d, DB_HINT_WRITE, dir);
 
     return ret;
 }

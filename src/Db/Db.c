@@ -327,7 +327,30 @@ DbLock(Db * db, size_t nArgs,...)
         return NULL;
     }
 
-    ret = db->lockFunc(db, args);
+    ret = db->lockFunc(db, DB_HINT_WRITE, args);
+
+    ArrayFree(args);
+
+    return ret;
+}
+
+DbRef *
+DbLockIntent(Db * db, DbHint hint, size_t nArgs,...)
+{
+    va_list ap;
+    Array *args;
+    DbRef *ret;
+
+    va_start(ap, nArgs);
+    args = ArrayFromVarArgs(nArgs, ap);
+    va_end(ap);
+
+    if (!args || !db->lockFunc)
+    {
+        return NULL;
+    }
+
+    ret = db->lockFunc(db, hint, args);
 
     ArrayFree(args);
 
