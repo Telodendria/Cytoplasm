@@ -17,6 +17,7 @@ typedef struct LMDB {
     Db base; /* The base implementation required to pass */
 
     MDB_env *environ;
+    MDB_dbi dbi;
 } LMDB;
 typedef struct LMDBRef {
     DbRef base;
@@ -140,8 +141,7 @@ LMDBLock(Db *d, DbHint hint, Array *k)
     LMDB *db = (LMDB *) d;
     MDB_txn *transaction;
     LMDBRef *ret = NULL;
-    MDB_val key, empty_json;
-    MDB_dbi dbi;
+    MDB_val key, json_val;
     int code, flags;
     if (!d || !k)
     {
@@ -151,7 +151,9 @@ LMDBLock(Db *d, DbHint hint, Array *k)
     pthread_mutex_lock(&d->lock);
     key = LMDBTranslateKey(k);
 
-    /* create a txn */
+    /* Create a transaction, honoring hints. */
+    /* TODO: Do we want to create a "main" transaction that everyone inherits 
+     * from? */
     flags = hint == DB_HINT_READONLY ? MDB_RDONLY : 0;
     if ((code = mdb_txn_begin(db->environ, NULL, flags, &transaction)) != 0)
     {
@@ -162,25 +164,13 @@ LMDBLock(Db *d, DbHint hint, Array *k)
         );
         goto end;
     }
-    /* apparently you need to give it a dbi */
-    if ((code = mdb_dbi_open(transaction, "db", MDB_CREATE, &dbi)) != 0)
-    {
-        Log(LOG_ERR,
-            "%s: could not get transaction dbi: %s",
-            __func__, mdb_strerror(code)
-        );
-        goto end;
-    }
 
-    empty_json.mv_size = 0;
-    empty_json.mv_data = NULL;
-    /* get data from it */
-    code = mdb_get(transaction, dbi, &key, &empty_json);
+    json_val.mv_size = 0;
+    json_val.mv_data = NULL;
+    code = mdb_get(transaction, db->dbi, &key, &json_val);
     if (code == MDB_NOTFOUND)
     {
-        /* No use logging it, as that is just locking behaviour */
         mdb_txn_abort(transaction);
-        mdb_dbi_close(db->environ, dbi);
         goto end;
     }
     else if (code != 0)
@@ -190,7 +180,6 @@ LMDBLock(Db *d, DbHint hint, Array *k)
             __func__, mdb_strerror(code)
         );
         mdb_txn_abort(transaction);
-        mdb_dbi_close(db->environ, dbi);
         goto end;
     }
 
@@ -206,19 +195,17 @@ LMDBLock(Db *d, DbHint hint, Array *k)
             StringArrayAppend(ret->base.name, ent);
         }
     }
-    ret->base.json = LMDBDecode(empty_json);
+    ret->base.json = LMDBDecode(json_val);
     ret->base.hint = hint;
     ret->transaction = NULL;
 
     if (hint == DB_HINT_WRITE)
     {
         ret->transaction = transaction;
-        ret->dbi = dbi;
     }
     else
     {
         mdb_txn_abort(transaction);
-        mdb_dbi_close(db->environ, dbi);
     }
 end:
     if (!ret || hint == DB_HINT_READONLY)
@@ -234,7 +221,6 @@ LMDBExists(Db *d, Array *k)
     MDB_val key, empty;
     LMDB *db = (LMDB *) d;
     MDB_txn *transaction;
-    MDB_dbi dbi;
     int code;
     bool ret = false;
     if (!d || !k)
@@ -255,21 +241,9 @@ LMDBExists(Db *d, Array *k)
         );
         goto end;
     }
-    /* apparently you need to give it a dbi */
-    if ((code = mdb_dbi_open(transaction, "db", MDB_CREATE, &dbi)) != 0)
-    {
-        Log(LOG_ERR,
-            "%s: could not get transaction dbi: %s",
-            __func__, mdb_strerror(code)
-        );
-        goto end;
 
-    }
-
-    ret = mdb_get(transaction, dbi, &key, &empty) == 0;
+    ret = mdb_get(transaction, db->dbi, &key, &empty) == 0;
     mdb_txn_abort(transaction);
-    mdb_dbi_close(db->environ, dbi);
-
 end:
     LMDBKillKey(key);
     pthread_mutex_unlock(&d->lock);
@@ -281,7 +255,6 @@ LMDBDelete(Db *d, Array *k)
     MDB_val key, empty;
     LMDB *db = (LMDB *) d;
     MDB_txn *transaction;
-    MDB_dbi dbi;
     int code;
     bool ret = false;
     if (!d || !k)
@@ -302,21 +275,9 @@ LMDBDelete(Db *d, Array *k)
         );
         goto end;
     }
-    /* apparently you need to give it a dbi */
-    if ((code = mdb_dbi_open(transaction, "db", MDB_CREATE, &dbi)) != 0)
-    {
-        Log(LOG_ERR,
-            "%s: could not get transaction dbi: %s",
-            __func__, mdb_strerror(code)
-        );
-        goto end;
 
-    }
-
-    ret = mdb_del(transaction, dbi, &key, &empty) == 0;
+    ret = mdb_del(transaction, db->dbi, &key, &empty) == 0;
     mdb_txn_commit(transaction);
-    mdb_dbi_close(db->environ, dbi);
-
 end:
     LMDBKillKey(key);
     pthread_mutex_unlock(&d->lock);
@@ -350,10 +311,9 @@ LMDBUnlock(Db *d, DbRef *r)
         StreamFlush(stream);
         StreamClose(stream);
 
-        ret = mdb_put(ref->transaction, ref->dbi, &key, &val, 0) == 0;
+        ret = mdb_put(ref->transaction, db->dbi, &key, &val, 0) == 0;
 
         mdb_txn_commit(ref->transaction);
-        mdb_dbi_close(db->environ, ref->dbi);
         LMDBKillKey(key);
     }
     StringArrayFree(ref->base.name);
@@ -377,7 +337,6 @@ LMDBCreate(Db *d, Array *k)
     MDB_txn *transaction;
     LMDBRef *ret = NULL;
     MDB_val key, empty_json;
-    MDB_dbi dbi;
     int code;
     if (!d || !k)
     {
@@ -397,38 +356,25 @@ LMDBCreate(Db *d, Array *k)
         );
         goto end;
     }
-    /* apparently you need to give it a dbi */
-    if ((code = mdb_dbi_open(transaction, "db", MDB_CREATE, &dbi)) != 0)
-    {
-        Log(LOG_ERR,
-            "%s: could not get transaction dbi: %s",
-            __func__, mdb_strerror(code)
-        );
-        goto end;
-
-    }
 
     empty_json.mv_size = 2;
     empty_json.mv_data = "{}";
     /* put data in it */
-    code = mdb_put(transaction, dbi, &key, &empty_json, MDB_NOOVERWRITE);
+    code = mdb_put(transaction, db->dbi, &key, &empty_json, MDB_NOOVERWRITE);
     if (code == MDB_KEYEXIST)
     {
-        mdb_dbi_close(db->environ, dbi);
         mdb_txn_abort(transaction);
         goto end;
     }
     else if (code == MDB_MAP_FULL)
     {
         Log(LOG_ERR, "%s: db is full", __func__);
-        mdb_dbi_close(db->environ, dbi);
         mdb_txn_abort(transaction);
         goto end;
     }
     else if (code != 0)
     {
         Log(LOG_ERR, "%s: mdb_put failure: %s", __func__, mdb_strerror(code));
-        mdb_dbi_close(db->environ, dbi);
         mdb_txn_abort(transaction);
         goto end;
     }
@@ -448,7 +394,6 @@ LMDBCreate(Db *d, Array *k)
     ret->base.hint = DB_HINT_WRITE;
     ret->base.json = HashMapCreate();
     ret->transaction = transaction;
-    ret->dbi = dbi;
 end:
     if (!ret)
     {
@@ -470,7 +415,6 @@ LMDBList(Db *d, Array *k)
     MDB_cursor *cursor;
     MDB_cursor_op op = MDB_SET_RANGE;
     MDB_txn *txn;
-    MDB_dbi dbi;
     int code;
 
     if (!d || !k)
@@ -482,7 +426,7 @@ LMDBList(Db *d, Array *k)
 
     /* Marked as read-only, as we just don't need to write anything 
      * when listing */
-    if ((code = mdb_txn_begin(db->environ, NULL, 0, &txn)) != 0)
+    if ((code = mdb_txn_begin(db->environ, NULL, MDB_RDONLY, &txn)) != 0)
     {
         /* Very bad! */
         Log(LOG_ERR,
@@ -491,24 +435,13 @@ LMDBList(Db *d, Array *k)
         );
         goto end;
     }
-    /* apparently you need to give it a dbi */
-    if ((code = mdb_dbi_open(txn, "db", MDB_CREATE, &dbi)) != 0)
-    {
-        Log(LOG_ERR,
-            "%s: could not get transaction dbi: %s",
-            __func__, mdb_strerror(code)
-        );
-        mdb_txn_abort(txn);
-        goto end;
-    }
-    if ((code = mdb_cursor_open(txn, dbi, &cursor)) != 0)
+    if ((code = mdb_cursor_open(txn, db->dbi, &cursor)) != 0)
     {
         Log(LOG_ERR,
             "%s: could not get cursor: %s",
             __func__, mdb_strerror(code)
         );
         mdb_txn_abort(txn);
-        mdb_dbi_close(db->environ, dbi);
         goto end;
     }
 
@@ -536,7 +469,6 @@ LMDBList(Db *d, Array *k)
 
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
-    mdb_dbi_close(db->environ, dbi);
 
 end:
     LMDBKillKey(key);
@@ -554,6 +486,7 @@ LMDBClose(Db *d)
         return;
     }
 
+    mdb_dbi_close(db->environ, db->dbi);
     mdb_env_close(db->environ);
 }
 
@@ -562,6 +495,8 @@ DbOpenLMDB(char *dir, size_t size)
 {
     /* TODO */
     MDB_env *env = NULL;
+    MDB_txn *txn;
+    MDB_dbi dbi;
     int code;
     LMDB *db;
     if (!dir || !size)
@@ -599,10 +534,35 @@ DbOpenLMDB(char *dir, size_t size)
         return NULL;
     }
 
+    /* Initialise a DBI */
+    {
+        if ((code = mdb_txn_begin(env, NULL, 0, &txn)) != 0)
+        {
+            Log(LOG_ERR,
+                "%s: could not begin transaction: %s",
+                __func__, mdb_strerror(code)
+            );
+            mdb_env_close(env);
+            return NULL;
+        }
+        if ((code = mdb_dbi_open(txn, "db", MDB_CREATE, &dbi)) != 0)
+        {
+            Log(LOG_ERR,
+                "%s: could not get transaction dbi: %s",
+                __func__, mdb_strerror(code)
+            );
+            mdb_txn_abort(txn);
+            mdb_env_close(env);
+            return NULL;
+        }
+        mdb_txn_commit(txn);
+    }
+
 
     db = Malloc(sizeof(*db));
     DbInit((Db *) db);
     db->environ = env;
+    db->dbi = dbi;
 
     db->base.lockFunc = LMDBLock;
     db->base.create = LMDBCreate;
