@@ -33,8 +33,7 @@
 #if (TLS_IMPL == TLS_OPENSSL) || (TLS_IMPL == TLS_LIBRESSL)
 
 #include <openssl/sha.h>
-#include <Log.h>
-    
+
 unsigned char *
 Sha256(char *str)
 {
