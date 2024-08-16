@@ -28,6 +28,26 @@
 
 #include <limits.h>
 
+#if (TLS_IMPL == TLS_OPENSSL) || (TLS_IMPL == TLS_LIBRESSL)
+
+#include <openssl/sha.h>
+    
+unsigned char *
+Sha1(char *str)
+{
+    unsigned char *digest;
+    if (!str)
+    {
+        return NULL;
+    }
+
+    digest = Malloc(20 + 1);
+    SHA1((unsigned char *) str, strlen(str), digest);
+    digest[20] = '\0';
+    return digest;
+}
+#else
+
 #define LOAD32H(x, y) \
 	{ \
 		x = ((uint32_t)((y)[0] & 255) << 24) | \
@@ -264,3 +284,4 @@ Sha1(char *str)
 
     return out;
 }
+#endif

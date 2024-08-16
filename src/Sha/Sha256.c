@@ -21,13 +21,35 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <Sha.h>
 #include <Memory.h>
+#include <Sha.h>
 
 #include <stdio.h>
 #include <string.h>
 
 #include <limits.h>
+
+
+#if (TLS_IMPL == TLS_OPENSSL) || (TLS_IMPL == TLS_LIBRESSL)
+
+#include <openssl/sha.h>
+#include <Log.h>
+    
+unsigned char *
+Sha256(char *str)
+{
+    unsigned char *digest;
+    if (!str)
+    {
+        return NULL;
+    }
+
+    digest = Malloc(32 + 1);
+    SHA256((unsigned char *) str, strlen(str), digest);
+    digest[32] = '\0';
+    return digest;
+}
+#else
 
 #define GET_UINT32(x) \
     (((uint32_t)(x)[0] << 24) | \
@@ -230,3 +252,4 @@ Sha256(char *str)
 
     return out;
 }
+#endif
