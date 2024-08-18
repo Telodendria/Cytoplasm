@@ -40,10 +40,12 @@
 #define MEMORY_HEXDUMP_WIDTH 16
 #endif
 
+#define MEMORY_FILE_SIZE 256
+
 struct MemoryInfo
 {
     size_t size;
-    const char *file;
+    char file[MEMORY_FILE_SIZE];
     int line;
     void *pointer;
 };
@@ -227,7 +229,7 @@ MemoryAllocate(size_t size, const char *file, int line)
     MEM_BOUND_UPPER(p, size) = MEM_BOUND;
 
     a->size = MEM_SIZE_ACTUAL(size);
-    a->file = file;
+    strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
     a->line = line;
     a->pointer = p;
 
@@ -270,7 +272,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
         {
             MemoryDelete(a);
             a->size = MEM_SIZE_ACTUAL(size);
-            a->file = file;
+            strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
 
             a->pointer = new;
@@ -293,7 +295,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
         if (a)
         {
             a->size = 0;
-            a->file = file;
+            strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
             a->pointer = p;
             hook(MEMORY_BAD_POINTER, a, hookArgs);
@@ -322,7 +324,7 @@ MemoryFree(void *p, const char *file, int line)
         pthread_mutex_lock(&lock);
         if (hook)
         {
-            a->file = file;
+            strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
             hook(MEMORY_FREE, a, hookArgs);
         }
@@ -337,7 +339,7 @@ MemoryFree(void *p, const char *file, int line)
         a = malloc(sizeof(MemoryInfo));
         if (a)
         {
-            a->file = file;
+            strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
             a->size = 0;
             a->pointer = p;
