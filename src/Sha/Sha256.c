@@ -30,7 +30,8 @@
 #include <limits.h>
 
 
-#if (TLS_IMPL == TLS_OPENSSL) || (TLS_IMPL == TLS_LIBRESSL)
+/* TODO: Verify LibreSSL support later */
+#if TLS_IMPL == TLS_OPENSSL
 
 #include <openssl/sha.h>
 
