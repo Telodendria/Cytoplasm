@@ -44,14 +44,20 @@
 
 struct MemoryInfo
 {
+    uint64_t magic;
+
     size_t size;
     char file[MEMORY_FILE_SIZE];
     int line;
     void *pointer;
+
+    MemoryInfo *prev;
+    MemoryInfo *next;
 };
 
 #define MEM_BOUND_TYPE uint32_t
 #define MEM_BOUND 0xDEADBEEF
+#define MEM_MAGIC 0xDEADBEEFDEADBEEF
 
 #define MEM_BOUND_LOWER(p) *((MEM_BOUND_TYPE *) p)
 #define MEM_BOUND_UPPER(p, x) *(((MEM_BOUND_TYPE *) (((uint8_t *) p) + x)) + 1)
@@ -61,9 +67,9 @@ static pthread_mutex_t lock;
 static void (*hook) (MemoryAction, MemoryInfo *, void *) = MemoryDefaultHook;
 static void *hookArgs = NULL;
 
-static MemoryInfo **allocations = NULL;
-static size_t allocationsSize = 0;
 static size_t allocationsLen = 0;
+
+static MemoryInfo *allocationTail = NULL;
 
 int
 MemoryRuntimeInit(void)
@@ -93,70 +99,18 @@ MemoryRuntimeDestroy(void)
     return pthread_mutex_destroy(&lock) == 0;
 }
 
-static size_t
-MemoryHash(void *p)
-{
-    return (((size_t) p) >> 2 * 7) % allocationsSize;
-}
-
 static int
 MemoryInsert(MemoryInfo * a)
 {
-    size_t hash;
-
-    if (!allocations)
+    if (allocationTail)
     {
-        allocationsSize = MEMORY_TABLE_CHUNK;
-        allocations = calloc(allocationsSize, sizeof(void *));
-        if (!allocations)
-        {
-            return 0;
-        }
+        allocationTail->next = a;
     }
+    a->next = NULL;
+    a->prev = allocationTail;
+    a->magic = MEM_MAGIC;
 
-    /* If the next insertion would cause the table to be at least 3/4
-     * full, re-allocate and re-hash. */
-    if ((allocationsLen + 1) >= ((allocationsSize * 3) >> 2))
-    {
-        size_t i;
-        size_t tmpAllocationsSize = allocationsSize;
-        MemoryInfo **tmpAllocations;
-
-        allocationsSize += MEMORY_TABLE_CHUNK;
-        tmpAllocations = calloc(allocationsSize, sizeof(void *));
-
-        if (!tmpAllocations)
-        {
-            return 0;
-        }
-
-        for (i = 0; i < tmpAllocationsSize; i++)
-        {
-            if (allocations[i])
-            {
-                hash = MemoryHash(allocations[i]->pointer);
-
-                while (tmpAllocations[hash])
-                {
-                    hash = (hash + 1) % allocationsSize;
-                }
-
-                tmpAllocations[hash] = allocations[i];
-            }
-        }
-
-        free(allocations);
-        allocations = tmpAllocations;
-    }
-
-    hash = MemoryHash(a->pointer);
-
-    while (allocations[hash])
-    {
-        hash = (hash + 1) % allocationsSize;
-    }
-
-    allocations[hash] = a;
+    allocationTail = a;
     allocationsLen++;
 
     return 1;
@@ -165,23 +119,24 @@ MemoryInsert(MemoryInfo * a)
 static void
 MemoryDelete(MemoryInfo * a)
 {
-    size_t hash = MemoryHash(a->pointer);
-    size_t count = 0;
+    MemoryInfo *aPrev = a->prev;
+    MemoryInfo *aNext = a->next;
 
-    while (count <= allocationsSize)
+    if (aPrev)
     {
-        if (allocations[hash] && allocations[hash] == a)
-        {
-            allocations[hash] = NULL;
-            allocationsLen--;
-            return;
-        }
-        else
-        {
-            hash = (hash + 1) % allocationsSize;
-            count++;
-        }
+        aPrev->next = aNext;
     }
+    if (aNext)
+    {
+        aNext->prev = aPrev;
+    }
+
+    if (a == allocationTail)
+    {
+        allocationTail = aPrev;
+    }
+
+    a->magic = ~MEM_MAGIC;
 }
 
 static int
@@ -205,24 +160,18 @@ MemoryAllocate(size_t size, const char *file, int line)
     void *p;
     MemoryInfo *a;
 
-    MemoryIterate(NULL, NULL);
+    //MemoryIterate(NULL, NULL);
 
     pthread_mutex_lock(&lock);
 
-    a = malloc(sizeof(MemoryInfo));
+    a = malloc(sizeof(MemoryInfo) + MEM_SIZE_ACTUAL(size));
     if (!a)
     {
         pthread_mutex_unlock(&lock);
         return NULL;
     }
 
-    p = malloc(MEM_SIZE_ACTUAL(size));
-    if (!p)
-    {
-        free(a);
-        pthread_mutex_unlock(&lock);
-        return NULL;
-    }
+    p = a + 1;
 
     memset(p, 0, MEM_SIZE_ACTUAL(size));
     MEM_BOUND_LOWER(p) = MEM_BOUND;
@@ -236,7 +185,6 @@ MemoryAllocate(size_t size, const char *file, int line)
     if (!MemoryInsert(a))
     {
         free(a);
-        free(p);
         pthread_mutex_unlock(&lock);
         return NULL;
     }
@@ -256,7 +204,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
     MemoryInfo *a;
     void *new = NULL;
 
-    MemoryIterate(NULL, NULL);
+    //MemoryIterate(NULL, NULL);
 
     if (!p)
     {
@@ -267,15 +215,17 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
     if (a)
     {
         pthread_mutex_lock(&lock);
-        new = realloc(a->pointer, MEM_SIZE_ACTUAL(size));
+        MemoryDelete(a);
+        new = realloc(a, sizeof(MemoryInfo) + MEM_SIZE_ACTUAL(size));
         if (new)
         {
-            MemoryDelete(a);
+            a = new;
             a->size = MEM_SIZE_ACTUAL(size);
             strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
+            a->magic = MEM_MAGIC;
 
-            a->pointer = new;
+            a->pointer = a + 1;
             MemoryInsert(a);
 
             MEM_BOUND_LOWER(a->pointer) = MEM_BOUND;
@@ -285,7 +235,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
             {
                 hook(MEMORY_REALLOCATE, a, hookArgs);
             }
-
+            
         }
         pthread_mutex_unlock(&lock);
     }
@@ -303,7 +253,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
         }
     }
 
-    return ((MEM_BOUND_TYPE *) new) + 1;
+    return ((MEM_BOUND_TYPE *) a->pointer) + 1;
 }
 
 void
@@ -311,7 +261,7 @@ MemoryFree(void *p, const char *file, int line)
 {
     MemoryInfo *a;
 
-    MemoryIterate(NULL, NULL);
+    //MemoryIterate(NULL, NULL);
 
     if (!p)
     {
@@ -329,7 +279,6 @@ MemoryFree(void *p, const char *file, int line)
             hook(MEMORY_FREE, a, hookArgs);
         }
         MemoryDelete(a);
-        free(a->pointer);
         free(a);
 
         pthread_mutex_unlock(&lock);
@@ -352,17 +301,15 @@ MemoryFree(void *p, const char *file, int line)
 size_t
 MemoryAllocated(void)
 {
-    size_t i;
     size_t total = 0;
+    MemoryInfo *cur;
 
     pthread_mutex_lock(&lock);
 
-    for (i = 0; i < allocationsSize; i++)
+    /* TODO */
+    for (cur = allocationTail; cur; cur = cur->prev)
     {
-        if (allocations[i])
-        {
-            total += MemoryInfoGetSize(allocations[i]);
-        }
+        total += MemoryInfoGetSize(cur);
     }
 
     pthread_mutex_unlock(&lock);
@@ -373,55 +320,40 @@ MemoryAllocated(void)
 void
 MemoryFreeAll(void)
 {
-    size_t i;
+    MemoryInfo *cur;
+    MemoryInfo *prev;
 
     pthread_mutex_lock(&lock);
 
-    for (i = 0; i < allocationsSize; i++)
+    /* TODO */
+    for (cur = allocationTail; cur; cur = prev)
     {
-        if (allocations[i])
-        {
-            free(allocations[i]->pointer);
-            free(allocations[i]);
-        }
+        prev = cur->prev;
+        free(cur);
     }
 
-    free(allocations);
-    allocations = NULL;
-    allocationsSize = 0;
     allocationsLen = 0;
 
     pthread_mutex_unlock(&lock);
 }
 
 MemoryInfo *
-MemoryInfoGet(void *p)
+MemoryInfoGet(void *po)
 {
-    size_t hash, count;
+    void *p = po;
 
     pthread_mutex_lock(&lock);
 
-    p = ((MEM_BOUND_TYPE *) p) - 1;
-    hash = MemoryHash(p);
+    p = ((MEM_BOUND_TYPE *) po) - 1;
+    p = ((MemoryInfo *) p) - 1;
 
-    count = 0;
-    while (count <= allocationsSize)
+    if (((MemoryInfo *)p)->magic != MEM_MAGIC)
     {
-        if (!allocations[hash] || allocations[hash]->pointer != p)
-        {
-            hash = (hash + 1) % allocationsSize;
-            count++;
-        }
-        else
-        {
-            MemoryCheck(allocations[hash]);
-            pthread_mutex_unlock(&lock);
-            return allocations[hash];
-        }
+        p = NULL;
     }
 
     pthread_mutex_unlock(&lock);
-    return NULL;
+    return p;
 }
 
 size_t
@@ -469,21 +401,18 @@ MemoryInfoGetPointer(MemoryInfo * a)
 }
 
 void
- MemoryIterate(void (*iterFunc) (MemoryInfo *, void *), void *args)
+MemoryIterate(void (*iterFunc) (MemoryInfo *, void *), void *args)
 {
-    size_t i;
+    MemoryInfo *cur;
 
     pthread_mutex_lock(&lock);
 
-    for (i = 0; i < allocationsSize; i++)
+    for (cur = allocationTail; cur; cur = cur->prev)
     {
-        if (allocations[i])
+        MemoryCheck(cur);
+        if (iterFunc)
         {
-            MemoryCheck(allocations[i]);
-            if (iterFunc)
-            {
-                iterFunc(allocations[i], args);
-            }
+            iterFunc(cur, args);
         }
     }
 
