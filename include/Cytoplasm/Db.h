@@ -49,6 +49,17 @@
 typedef struct Db Db;
 
 /**
+ * Some "hints" for the database backend for operations. 
+ * Hints are a way for the program to declare what to except of it
+ * (and the program MUST adhere to these hints, but the backend 
+ * MAY adhere).
+ */
+typedef enum DbHint {
+    DB_HINT_READONLY,   /* The database reference is treated as read-only */
+    DB_HINT_WRITE       /* The database reference is treated as read/write */
+} DbHint;
+
+/**
  * When an object is locked, a reference is returned. This reference
  * is owned by the current thread, and the database is inaccessible to
  * other threads until all references have been returned to the
@@ -67,6 +78,15 @@ typedef struct DbRef DbRef;
  * evicted in a least-recently-used manner.
  */
 extern Db * DbOpen(char *, size_t);
+
+/**
+ * Open a LMDB data directory. This function is similar to 
+ * .Fn DbOpen ,
+ * but works with a LMDB-based backend, with the second argument 
+ * being the maximum filesize. This function fails with NULL if ever 
+ * called without LMDB enabled at compiletime.
+ */
+extern Db * DbOpenLMDB(char *, size_t);
 
 /**
  * Close the database. This function will flush anything in the cache
@@ -108,6 +128,15 @@ extern DbRef * DbCreate(Db *, size_t,...);
  * uniquely identifiable, and provides semantic meaning to an object.
  */
 extern DbRef * DbLock(Db *, size_t,...);
+
+/**
+ * Behaves like
+ * .Fn DbLock ,
+ * but with hints on the reference itself, as 
+ * .Fn DbLock 
+ * itself is read/write.
+ */
+extern DbRef * DbLockIntent(Db *, DbHint, size_t,...);
 
 /**
  * Immediately and permanently remove an object from the database.

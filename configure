@@ -15,7 +15,7 @@ TOOLS="tools"
 
 # Default compiler flags. These must be supported by all POSIX C compilers.
 # "Fancy" compilers that have additional options must be detected and set below.
-CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE}"
+CFLAGS="-O1 -D_DEFAULT_SOURCE -I${INCLUDE} -I${SRC}";
 LIBS="-lm -lpthread"
 
 # Default args for all platforms.
@@ -24,10 +24,10 @@ SCRIPT_ARGS="--prefix=/usr/local --lib-name=Cytoplasm"
 # Set SSL flags depending on the platform.
 case "$(uname)" in
     OpenBSD)
-        SCRIPT_ARGS="${SCRIPT_ARGS} --with-libressl"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-libressl --disable-lmdb"
         ;;
     *)
-        SCRIPT_ARGS="${SCRIPT_ARGS} --with-openssl"
+        SCRIPT_ARGS="${SCRIPT_ARGS} --with-openssl --disable-lmdb"
         ;;
 esac
 
@@ -80,6 +80,14 @@ for arg in $SCRIPT_ARGS; do
             TLS_IMPL=""
             TLS_LIBS=""
             ;;
+        --with-lmdb)
+            EDB_IMPL="EDB_LMDB"
+            EDB_LIBS="-llmdb"
+            ;;
+        --disable-lmdb)
+            EDB_IMPL=""
+            EDB_LIBS=""
+            ;;
         --prefix=*)
             PREFIX=$(echo "$arg" | cut -d '=' -f 2-)
             ;;
@@ -102,6 +110,11 @@ done
 if [ -n "$TLS_IMPL" ]; then
     CFLAGS="${CFLAGS} -DTLS_IMPL=${TLS_IMPL}"
     LIBS="${LIBS} ${TLS_LIBS}"
+fi
+
+if [ -n "$EDB_IMPL" ]; then
+    CFLAGS="${CFLAGS} -D${EDB_IMPL}"
+    LIBS="${LIBS} ${EDB_LIBS}"
 fi
 
 CFLAGS="${CFLAGS} '-DLIB_NAME=\"${LIB_NAME}\"' ${DEBUG}"
@@ -140,7 +153,7 @@ print_obj() {
 get_deps() {
     src="$1"
 
-    ${CC} -I${INCLUDE} -E "$src" \
+    ${CC} -I${SRC} -I${INCLUDE} -E "$src" \
         | grep '^#'              \
         | awk '{print $3}'       \
         | cut -d '"' -f 2        \
