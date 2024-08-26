@@ -29,7 +29,7 @@
 #include <limits.h>
 
 /* TODO: Verify LibreSSL support later */
-#if TLS_IMPL == TLS_OPENSSL
+#if defined(TLS_IMPL) && (TLS_IMPL == TLS_OPENSSL)
 
 #include <openssl/sha.h>
     
