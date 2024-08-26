@@ -269,7 +269,8 @@ ${TAB}done
 ${LIB_NAME}: ${OUT}/lib/lib${LIB_NAME}.a ${OUT}/lib/lib${LIB_NAME}.so
 
 install: ${LIB_NAME}
-${TAB}mkdir -p ${OUT}/lib
+${TAB}mkdir -p \$(PREFIX)/${OUT}/lib
+${TAB}mkdir -p \$(PREFIX)/lib
 ${TAB}cp ${OUT}/lib/lib${LIB_NAME}.a \$(PREFIX)/lib/lib${LIB_NAME}.a
 ${TAB}cp ${OUT}/lib/lib${LIB_NAME}.so \$(PREFIX)/lib/lib${LIB_NAME}.so
 $(collect ${INCLUDE}/ '' '' \$\(PREFIX\)/include/${LIB_NAME}/ install_out)
