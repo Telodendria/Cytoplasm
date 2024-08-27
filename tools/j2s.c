@@ -38,6 +38,7 @@
 
 #define MAX_DEPENDENCIES 32
 
+#define IsDelimited(field, c1, c2) (*field == c1 && field[strlen(field) - 1] == c2)
 static char *
 Trim(char c, char *str)
 {
@@ -75,11 +76,11 @@ TypeToJsonType(char *type)
     }
     else
     {
-        if (*type == '[' && type[strlen(type) - 1] == ']')
+        if (IsDelimited(type, '[', ']'))
         {
             return JSON_ARRAY;
         }
-        else if (*type == '{' && type[strlen(type) - 1] == '}')
+        else if (IsDelimited(type, '{', '}'))
         {
             return JSON_OBJECT;
         }
@@ -348,13 +349,13 @@ Main(Array * args)
                     goto finish;
                 }
 
-                if (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']')
+                if (IsDelimited(fieldType, '[', ']'))
                 {
                     fieldType++;
                     fieldType[strlen(fieldType) - 1] = '\0';
                     isArrType = true;
                 }
-                else if (*fieldType == '{' && fieldType[strlen(fieldType) - 1] == '}')
+                else if (IsDelimited(fieldType, '{', '}'))
                 {
                     fieldType++;
                     fieldType[strlen(fieldType) - 1] = '\0';
@@ -545,12 +546,12 @@ Main(Array * args)
                     cType = "double";
                 }
                 else if (StrEquals(fieldType, "object") || 
-                        (*fieldType == '{' && 
-                         fieldType[strlen(fieldType) - 1] == '}'))
+                        IsDelimited(fieldType, '{', '}'))
                 {
                     cType = "HashMap *";
                 }
-                else if (StrEquals(fieldType, "array") || (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']'))
+                else if (StrEquals(fieldType, "array") || 
+                        IsDelimited(fieldType, '[', ']'))
                 {
                     cType = "Array *";
                 }
@@ -559,7 +560,19 @@ Main(Array * args)
                     cType = fieldType;
                 }
 
-                StreamPrintf(headerFile, "    %s %s;\n", cType, field);
+                if (IsDelimited(fieldType, '{', '}') ||
+                    IsDelimited(fieldType, '[', ']'))
+                {
+                    fieldType[strlen(fieldType) - 1] = '\0';
+
+                    StreamPrintf(headerFile, "    %s /* of %s */ %s;\n", cType, fieldType + 1, field);
+
+                    fieldType[strlen(fieldType)] = '}';
+                }
+                else
+                {
+                    StreamPrintf(headerFile, "    %s %s;\n", cType, field);
+                }
             }
 
             StreamPrintf(headerFile, "} %s;\n\n", type);
@@ -690,7 +703,7 @@ Main(Array * args)
                     StreamPrintf(implFile, "        out->%s = JsonValueAsObject(val);\n", key);
                     StreamPrintf(implFile, "        Free(val); /* Not JsonValueFree() because we want the inner value. */\n");
                 }
-                else if (*fieldType == '{' && fieldType[strlen(fieldType) - 1] == '}')
+                else if (IsDelimited(fieldType, '{', '}'))
                 {
                     fieldType++;
                     fieldType[strlen(fieldType) - 1] = '\0';
@@ -817,7 +830,7 @@ Main(Array * args)
 
                     fieldType[strlen(fieldType)] = '}';
                 }
-                else if (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']')
+                else if (IsDelimited(fieldType, '[', ']'))
                 {
                     fieldType++;
                     fieldType[strlen(fieldType) - 1] = '\0';
@@ -1059,7 +1072,7 @@ Main(Array * args)
                 {
                     StreamPrintf(implFile, "    HashMapSet(json, \"%s\", JsonValueObject(JsonDuplicate(val->%s)));\n", Trim('_', key), key);
                 }
-                else if (*fieldType == '{' && fieldType[strlen(fieldType) - 1] == '}')
+                else if (IsDelimited(fieldType, '{', '}'))
                 {
                     int isPrimitive;
 
@@ -1125,7 +1138,7 @@ Main(Array * args)
 
                     fieldType[strlen(fieldType)] = '}';
                 }
-                else if (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']')
+                else if (IsDelimited(fieldType, '[', ']'))
                 {
                     int isPrimitive;
 
@@ -1246,7 +1259,7 @@ Main(Array * args)
                 {
                     StreamPrintf(implFile, "    Free(val->%s);\n", key);
                 }
-                else if (*fieldType == '{' && fieldType[strlen(fieldType) - 1] == '}')
+                else if (IsDelimited(fieldType, '{', '}'))
                 {
                     int isPrimitive;
 
@@ -1275,7 +1288,7 @@ Main(Array * args)
 
                     fieldType[strlen(fieldType)] = '}';
                 }
-                else if (*fieldType == '[' && fieldType[strlen(fieldType) - 1] == ']')
+                else if (IsDelimited(fieldType, '[', ']'))
                 {
                     int isPrimitive;
 
