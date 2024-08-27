@@ -31,12 +31,12 @@
 
 
 /* TODO: Verify LibreSSL support later */
-#if TLS_IMPL == TLS_OPENSSL
+#if defined(TLS_IMPL) && (TLS_IMPL == TLS_OPENSSL)
 
 #include <openssl/sha.h>
 
 unsigned char *
-Sha256(char *str)
+Sha256Raw(unsigned char *str, size_t len)
 {
     unsigned char *digest;
     if (!str)
@@ -45,7 +45,7 @@ Sha256(char *str)
     }
 
     digest = Malloc(32 + 1);
-    SHA256((unsigned char *) str, strlen(str), digest);
+    SHA256(str, len, digest);
     digest[32] = '\0';
     return digest;
 }
@@ -192,7 +192,7 @@ Sha256Process(Sha256Context * context, unsigned char *data, size_t length)
 }
 
 unsigned char *
-Sha256(char *str)
+Sha256Raw(unsigned char *str, size_t len)
 {
     Sha256Context context;
     size_t i;
@@ -228,7 +228,7 @@ Sha256(char *str)
     context.length = 0;
     memset(context.buffer, 0, 64);
 
-    Sha256Process(&context, (unsigned char *) str, strlen(str));
+    Sha256Process(&context, str, len);
 
     memset(fill, 0, 64);
     fill[0] = 0x80;

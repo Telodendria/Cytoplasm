@@ -29,12 +29,12 @@
 #include <limits.h>
 
 /* TODO: Verify LibreSSL support later */
-#if TLS_IMPL == TLS_OPENSSL
+#if defined(TLS_IMPL) && (TLS_IMPL == TLS_OPENSSL)
 
 #include <openssl/sha.h>
     
 unsigned char *
-Sha1(char *str)
+Sha1Raw(unsigned char *str, size_t len)
 {
     unsigned char *digest;
     if (!str)
@@ -43,7 +43,7 @@ Sha1(char *str)
     }
 
     digest = Malloc(20 + 1);
-    SHA1((unsigned char *) str, strlen(str), digest);
+    SHA1(str, len, digest);
     digest[20] = '\0';
     return digest;
 }
@@ -261,7 +261,7 @@ Sha1Calculate(Sha1Context * ctx, unsigned char *out)
 }
 
 unsigned char *
-Sha1(char *str)
+Sha1Raw(unsigned char *str, size_t len)
 {
     Sha1Context ctx;
     unsigned char *out;
@@ -278,7 +278,7 @@ Sha1(char *str)
     }
 
     Sha1Init(&ctx);
-    Sha1Update(&ctx, str, strlen(str));
+    Sha1Update(&ctx, str, len);
     Sha1Calculate(&ctx, out);
 
     out[160 / 8] = '\0';
