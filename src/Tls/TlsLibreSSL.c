@@ -23,7 +23,7 @@
  */
 #include <Tls.h>
 
-#if TLS_IMPL == TLS_LIBRESSL
+#if defined(TLS_IMPL) && (TLS_IMPL == TLS_LIBRESSL)
 
 #include <Memory.h>
 #include <Log.h>

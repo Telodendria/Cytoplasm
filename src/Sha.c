@@ -28,21 +28,44 @@
 #include <string.h>
 
 char *
-ShaToHex(unsigned char *bytes)
+ShaToHex(unsigned char *bytes, HashType type)
 {
-    size_t i = 0;
-    char *str = Malloc(((strlen((char *) bytes) * 2) + 1) * sizeof(char));
+    size_t i = 0, size;
+    char *str;
 
+    switch (type)
+    {
+        case HASH_SHA1:
+            size = 20;
+            break;
+        case HASH_SHA256:
+            size = 32;
+            break;
+        default:
+            return NULL;
+    }
+
+    str = Malloc(((size * 2) + 1) * sizeof(char));
     if (!str)
     {
         return NULL;
     }
 
-    while (bytes[i] != '\0')
+    for (i = 0; i < size; i++)
     {
         snprintf(str + (2 * i), 3, "%02x", bytes[i]);
-        i++;
     }
 
     return str;
+}
+unsigned char *
+Sha256(char *str)
+{
+    return Sha256Raw((unsigned char *) str, str ? strlen(str) : 0);
+}
+
+unsigned char *
+Sha1(char *str)
+{
+    return Sha1Raw((unsigned char *) str, str ? strlen(str) : 0);
 }

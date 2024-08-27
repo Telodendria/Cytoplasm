@@ -41,6 +41,16 @@
  * due to the lack of a 64-bit integer type, so that hash
  * function has been omitted.
  */
+#include <stddef.h>
+
+/**
+ * This is an enum to be used to identify the type of SHA used.
+ */
+typedef enum HashType
+{
+    HASH_SHA1,
+    HASH_SHA256
+} HashType;
 
 /**
  * This function takes a pointer to a NULL-terminated C string, and
@@ -65,12 +75,26 @@ extern unsigned char * Sha256(char *);
 extern unsigned char * Sha1(char *);
 
 /**
+ * This function behaves just like 
+ * .Fn Sha256 ,
+ * except that it allows for a generic byte array, instead of a string.
+ */
+extern unsigned char * Sha256Raw(unsigned char *, size_t);
+
+/**
+ * This function behaves just like 
+ * .Fn Sha1 ,
+ * except that it allows for a generic byte array, instead of a string.
+ */
+extern unsigned char * Sha1Raw(unsigned char *, size_t);
+
+/**
  * Convert a SHA byte buffer into a hex string. These hex strings
  * are typically what is transmitted, stored, and compared, however
  * there may be times when it is necessary to work with the raw
  * bytes directly, which is why the conversion to a hex string is
  * a separate step.
  */
-extern char * ShaToHex(unsigned char *);
+extern char * ShaToHex(unsigned char *, HashType);
 
 #endif                             /* CYTOPLASM_SHA_H */
