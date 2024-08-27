@@ -563,11 +563,12 @@ Main(Array * args)
                 if (IsDelimited(fieldType, '{', '}') ||
                     IsDelimited(fieldType, '[', ']'))
                 {
+                    char end = fieldType[strlen(fieldType) - 1];
                     fieldType[strlen(fieldType) - 1] = '\0';
 
                     StreamPrintf(headerFile, "    %s /* of %s */ %s;\n", cType, fieldType + 1, field);
 
-                    fieldType[strlen(fieldType)] = '}';
+                    fieldType[strlen(fieldType)] = end;
                 }
                 else
                 {
