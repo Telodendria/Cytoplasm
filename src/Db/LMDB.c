@@ -293,6 +293,7 @@ LMDBUnlock(Db *d, DbRef *r)
     Stream *stream;
     MDB_val key, val;
     bool ret = true;
+    DbHint hint = r ? r->hint : 0;
 
     if (!d || !r)
     {
@@ -324,7 +325,7 @@ LMDBUnlock(Db *d, DbRef *r)
     {
         free(val.mv_data);
     }
-    if (ret && r->hint == DB_HINT_WRITE)
+    if (ret && hint == DB_HINT_WRITE)
     {
         pthread_mutex_unlock(&d->lock);
     }
