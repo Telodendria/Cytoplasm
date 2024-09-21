@@ -24,6 +24,13 @@
 #ifndef CYTOPLASM_PLATFORM_H
 #define CYTOPLASM_PLATFORM_H
 
+/***
+ * @Nm Platform
+ * @Nd A simple macro header that determines what platform the application
+ * is being built for.
+ * @Dd September 21, 2024
+ */
+
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
     #define PLATFORM_WINDOWS
 
