@@ -11,7 +11,7 @@ jobs:
         runs-on: ["${{ matrix.os }}", "${{ matrix.arch }}"]
         steps:
             - name: Check out repository
-             uses: actions/checkout@v4
+              uses: actions/checkout@v4
             - name: Configure Cytoplasm
               run: ./configure
             - name: Build Cytoplasm
