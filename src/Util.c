@@ -24,6 +24,7 @@
 #include <Util.h>
 
 #include <Memory.h>
+#include <Platform.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,6 +90,10 @@ UtilTsMillis(void)
     return ts;
 }
 
+#ifdef PLATFORM_DARWIN
+#define st_mtim st_mtimespec
+#endif
+
 uint64_t
 UtilLastModified(char *path)
 {
@@ -104,6 +109,10 @@ UtilLastModified(char *path)
 
     return ts;
 }
+
+#ifdef PLATFORM_DARWIN
+#undef st_mtim
+#endif
 
 int
 UtilMkdir(const char *dir, const mode_t mode)
