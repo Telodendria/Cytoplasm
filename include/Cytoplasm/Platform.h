@@ -44,16 +44,12 @@
 
     #include <TargetConditionals.h>
     #if TARGET_IPHONE_SIMULATOR
-        // iOS, tvOS, or watchOS Simulator
         #define PLATFORM_IPHONE
     #elif TARGET_OS_MACCATALYST
-         // Mac's Catalyst (ports iOS API into Mac, like UIKit).
         #define PLATFORM_CATALYST
     #elif TARGET_OS_IPHONE
-        // iOS, tvOS, or watchOS device
         #define PLATFORM_IPHONE
     #elif TARGET_OS_MAC
-        // Other kinds of Apple platforms
         #define PLATFORM_MAC
     #else
     #   error "Unknown Apple platform"
@@ -62,7 +58,7 @@
     #define PLATFORM_ANDROID
 #elif __linux__
     #define PLATFORM_LINUX
-#elif __unix__ // all unices not caught above
+#elif __unix__
     #define PLATFORM_UNIX
 #elif defined(_POSIX_VERSION)
     #define PLATFORM_POSIX
@@ -70,4 +66,4 @@
 #   error "Unknown compiler"
 #endif
 
-#endif // CYTOPLASM_PLATFORM_H
+#endif /* CYTOPLASM_PLATFORM_H */
