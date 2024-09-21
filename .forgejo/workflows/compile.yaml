@@ -1,0 +1,18 @@
+name: Compile Cytoplasm
+run-name: Compile Cytoplasm on ${{ forgejo.actor }}
+on: [push]
+
+jobs:
+    "Compile Cytoplasm":
+        strategy:
+            matrix:
+                os: [alpine]
+                arch: [aarch64]
+        runs-on: ["${{ matrix.os }}", "${{ matrix.arch }}"]
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v3
+            - name: Configure Cytoplasm
+              run: ./configure
+            - name: Build Cytoplasm
+              run: make
