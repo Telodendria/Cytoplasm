@@ -1,6 +1,6 @@
 name: Compile Cytoplasm
 run-name: Compile Cytoplasm on ${{ forgejo.actor }}
-on: [push]
+on: [push, pull_request]
 
 jobs:
     "Compile Cytoplasm":
