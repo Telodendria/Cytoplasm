@@ -42,26 +42,30 @@
 
 #define MEMORY_FILE_SIZE 256
 
+#define MEM_BOUND_TYPE uint64_t
+#define MEM_BOUND 0xDEADBEEFBEEFDEAD
+#define MEM_MAGIC 0xDEADBEEFDEADBEEF
+
 struct MemoryInfo
 {
     uint64_t magic;
 
     size_t size;
+    size_t unalignedSize;
     char file[MEMORY_FILE_SIZE];
     int line;
     void *pointer;
 
     MemoryInfo *prev;
     MemoryInfo *next;
+
+    MEM_BOUND_TYPE leftBoundary;
 };
 
-#define MEM_BOUND_TYPE uint32_t
-#define MEM_BOUND 0xDEADBEEF
-#define MEM_MAGIC 0xDEADBEEFDEADBEEF
+#define MEM_SIZE_ACTUAL(x) (MemoryAlignBoundary((x) * sizeof(uint8_t)) + sizeof(MEM_BOUND_TYPE))
+#define MEM_START_BOUNDARY(info) (info->leftBoundary)
+#define MEM_END_BOUNDARY(info) (*(((MEM_BOUND_TYPE *) (((uint8_t *) info->pointer) + info->size)) - 1))
 
-#define MEM_BOUND_LOWER(p) *((MEM_BOUND_TYPE *) p)
-#define MEM_BOUND_UPPER(p, x) *(((MEM_BOUND_TYPE *) (((uint8_t *) p) + x)) + 1)
-#define MEM_SIZE_ACTUAL(x) (((x) * sizeof(uint8_t)) + (2 * sizeof(MEM_BOUND_TYPE)))
 
 static pthread_mutex_t lock;
 static void (*hook) (MemoryAction, MemoryInfo *, void *) = MemoryDefaultHook;
@@ -70,6 +74,19 @@ static void *hookArgs = NULL;
 static size_t allocationsLen = 0;
 
 static MemoryInfo *allocationTail = NULL;
+
+/* Simple range of "plausible" boundaries for heap, serving as an extra 
+ * check */
+static void *heapStart, *heapEnd;
+
+static size_t MemoryAlignBoundary(size_t size)
+{
+    size_t boundSize = sizeof(MEM_BOUND_TYPE);
+    size_t remainder = size % boundSize;
+    size_t closest   = size / boundSize + !!remainder;
+
+    return closest * boundSize;
+}
 
 int
 MemoryRuntimeInit(void)
@@ -85,6 +102,8 @@ MemoryRuntimeInit(void)
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     ret = pthread_mutex_init(&lock, &attr);
     pthread_mutexattr_destroy(&attr);
+    heapStart = NULL;
+    heapEnd = NULL;
 
     ret = (ret == 0);
 
@@ -109,6 +128,15 @@ MemoryInsert(MemoryInfo * a)
     a->next = NULL;
     a->prev = allocationTail;
     a->magic = MEM_MAGIC;
+
+    if (!heapStart || heapStart > (void *) a)
+    {
+        heapStart = a;
+    }
+    if (!heapEnd || heapEnd < (void *) a)
+    {
+        heapEnd = a;
+    }
 
     allocationTail = a;
     allocationsLen++;
@@ -142,8 +170,9 @@ MemoryDelete(MemoryInfo * a)
 static int
 MemoryCheck(MemoryInfo * a)
 {
-    if (MEM_BOUND_LOWER(a->pointer) != MEM_BOUND ||
-        MEM_BOUND_UPPER(a->pointer, a->size - (2 * sizeof(MEM_BOUND_TYPE))) != MEM_BOUND)
+    if (MEM_START_BOUNDARY(a) != MEM_BOUND || 
+        a->magic != MEM_MAGIC ||
+        MEM_END_BOUNDARY(a) != MEM_BOUND)
     {
         if (hook)
         {
@@ -174,13 +203,14 @@ MemoryAllocate(size_t size, const char *file, int line)
     p = a + 1;
 
     memset(p, 0, MEM_SIZE_ACTUAL(size));
-    MEM_BOUND_LOWER(p) = MEM_BOUND;
-    MEM_BOUND_UPPER(p, size) = MEM_BOUND;
 
     a->size = MEM_SIZE_ACTUAL(size);
+    a->unalignedSize = size;
     strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
     a->line = line;
     a->pointer = p;
+    MEM_START_BOUNDARY(a) = MEM_BOUND;
+    MEM_END_BOUNDARY(a) = MEM_BOUND;
 
     if (!MemoryInsert(a))
     {
@@ -195,7 +225,7 @@ MemoryAllocate(size_t size, const char *file, int line)
     }
 
     pthread_mutex_unlock(&lock);
-    return ((MEM_BOUND_TYPE *) p) + 1;
+    return p;
 }
 
 void *
@@ -220,6 +250,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
         if (new)
         {
             a = new;
+            a->unalignedSize = size;
             a->size = MEM_SIZE_ACTUAL(size);
             strncpy(a->file, file, MEMORY_FILE_SIZE - 1);
             a->line = line;
@@ -228,8 +259,8 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
             a->pointer = a + 1;
             MemoryInsert(a);
 
-            MEM_BOUND_LOWER(a->pointer) = MEM_BOUND;
-            MEM_BOUND_UPPER(a->pointer, size) = MEM_BOUND;
+            MEM_START_BOUNDARY(a) = MEM_BOUND;
+            MEM_END_BOUNDARY(a) = MEM_BOUND;
 
             if (hook)
             {
@@ -253,7 +284,7 @@ MemoryReallocate(void *p, size_t size, const char *file, int line)
         }
     }
 
-    return ((MEM_BOUND_TYPE *) a->pointer) + 1;
+    return a->pointer;
 }
 
 void
@@ -344,8 +375,12 @@ MemoryInfoGet(void *po)
 
     pthread_mutex_lock(&lock);
 
-    p = ((MEM_BOUND_TYPE *) po) - 1;
     p = ((MemoryInfo *) p) - 1;
+    if (p < heapStart || p > heapEnd)
+    {
+        pthread_mutex_unlock(&lock);
+        return NULL;
+    }
 
     if (((MemoryInfo *)p)->magic != MEM_MAGIC)
     {
@@ -364,7 +399,7 @@ MemoryInfoGetSize(MemoryInfo * a)
         return 0;
     }
 
-    return a->size ? a->size - (2 * sizeof(MEM_BOUND_TYPE)) : 0;
+    return a->size ? a->unalignedSize : 0;
 }
 
 const char *
@@ -397,7 +432,7 @@ MemoryInfoGetPointer(MemoryInfo * a)
         return NULL;
     }
 
-    return ((MEM_BOUND_TYPE *) a->pointer) + 1;
+    return a->pointer;
 }
 
 void
