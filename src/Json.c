@@ -1348,6 +1348,25 @@ JsonDecode(Stream * stream)
 
     return result;
 }
+JsonValue * 
+JsonValueDecode(Stream *stream)
+{
+    JsonValue *result;
+    JsonParserState state;
+
+    state.stream = stream;
+    state.token = NULL;
+
+    JsonTokenSeek(&state);
+    result = JsonDecodeValue(&state);
+
+    if (state.token)
+    {
+        Free(state.token);
+    }
+
+    return result;
+}
 
 JsonValue *
 JsonGet(HashMap * json, size_t nArgs,...)
