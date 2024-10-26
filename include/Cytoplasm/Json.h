@@ -298,6 +298,12 @@ extern size_t JsonEncode(HashMap *, Stream *, int);
 extern HashMap * JsonDecode(Stream *);
 
 /**
+ * Decodes a JSON value from thr current input strram and parse it 
+ * into a JsonValue.
+ */
+extern JsonValue * JsonValueDecode(Stream *);
+
+/**
  * A convenience function that allows the caller to retrieve and
  * arbitrarily deep keys within a JSON object. It takes a root JSON
  * object, the number of levels deep to go, and then that number of
