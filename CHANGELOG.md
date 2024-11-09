@@ -21,6 +21,8 @@ are not even initialized to a default value.
 - Make `HttpRouter` decode path parts before matching them on regular expressions.
 - Fixed a bug in `ArraySort()` that would crash programs if the passed array has no
   elements.
+- Adds `Db[OP]Args` functions that are equivalent to their `Db[OP]` counter parts, but 
+  uses an array of string instead of variadic arguments.
 
 ## v0.4.0
 

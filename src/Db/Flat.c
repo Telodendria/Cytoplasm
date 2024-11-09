@@ -54,7 +54,8 @@ DbDirName(FlatDb * db, Array * args, size_t strip)
     {
         char *tmp;
         char *sanitise = StrDuplicate(ArrayGet(args, i));
-        for (j = 0; j < strlen(sanitise); j++)
+        size_t len = strlen(sanitise);
+        for (j = 0; j < len; j++)
         {
             sanitise[j] = DbSanitiseChar(sanitise[j]);
         }
