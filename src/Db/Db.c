@@ -263,6 +263,16 @@ DbClose(Db * db)
 }
 
 DbRef *
+DbCreateArgs(Db * db, Array *args)
+{
+    if (!args || !db || !db->create)
+    {
+        return NULL;
+    }
+
+    return db->create(db, args);
+}
+DbRef *
 DbCreate(Db * db, size_t nArgs,...)
 {
     va_list ap;
@@ -283,12 +293,22 @@ DbCreate(Db * db, size_t nArgs,...)
         return NULL;
     }
 
-    ret = db->create(db, args);
+    ret = DbCreateArgs(db, args);
     ArrayFree(args);
 
     return ret;
 }
 
+bool
+DbDeleteArgs(Db * db, Array *args)
+{
+    if (!args || !db || !db->delete)
+    {
+        return false;
+    }
+
+    return db->delete(db, args);
+}
 bool
 DbDelete(Db * db, size_t nArgs,...)
 {
@@ -305,18 +325,33 @@ DbDelete(Db * db, size_t nArgs,...)
     args = ArrayFromVarArgs(nArgs, ap);
     va_end(ap);
 
-    ret = db->delete(db, args);
+    ret = DbDeleteArgs(db, args);
 
     ArrayFree(args);
     return ret;
 }
 
 DbRef *
+DbLockArgs(Db * db, Array *args)
+{
+    if (!args || !db || !db->lockFunc)
+    {
+        return NULL;
+    }
+
+    return db->lockFunc(db, DB_HINT_WRITE, args);
+}
+DbRef *
 DbLock(Db * db, size_t nArgs,...)
 {
     va_list ap;
     Array *args;
     DbRef *ret;
+
+    if (!db)
+    {
+        return NULL;
+    }
 
     va_start(ap, nArgs);
     args = ArrayFromVarArgs(nArgs, ap);
@@ -327,13 +362,22 @@ DbLock(Db * db, size_t nArgs,...)
         return NULL;
     }
 
-    ret = db->lockFunc(db, DB_HINT_WRITE, args);
+    ret = DbLockArgs(db, args);
 
     ArrayFree(args);
 
     return ret;
 }
 
+DbRef *
+DbLockIntentArgs(Db * db, DbHint hint, Array *args)
+{
+   if (!db || !args || !db->lockFunc)
+   {
+        return NULL;
+   }
+   return db->lockFunc(db, hint, args);
+}
 DbRef *
 DbLockIntent(Db * db, DbHint hint, size_t nArgs,...)
 {
@@ -350,7 +394,7 @@ DbLockIntent(Db * db, DbHint hint, size_t nArgs,...)
         return NULL;
     }
 
-    ret = db->lockFunc(db, hint, args);
+    ret = DbLockIntentArgs(db, hint, args);
 
     ArrayFree(args);
 
@@ -368,6 +412,16 @@ DbUnlock(Db * db, DbRef * ref)
     return db->unlock(db, ref);
 }
 
+bool
+DbExistsArgs(Db * db, Array *args)
+{
+    if (!args || !db || !db->exists)
+    {
+        return false;
+    }
+
+    return db->exists(db, args);
+}
 bool
 DbExists(Db * db, size_t nArgs,...)
 {
@@ -388,12 +442,21 @@ DbExists(Db * db, size_t nArgs,...)
         return false;
     }
 
-    ret = db->exists(db, args);
+    ret = DbExistsArgs(db, args);
     ArrayFree(args);
 
     return ret;
 }
 
+Array * 
+DbListArgs(Db *db, Array *args)
+{
+    if (!db || !args || !db->list)
+    {
+        return NULL;
+    }
+    return db->list(db, args);
+}
 Array *
 DbList(Db * db, size_t nArgs,...)
 {
@@ -410,7 +473,7 @@ DbList(Db * db, size_t nArgs,...)
     path = ArrayFromVarArgs(nArgs, ap);
     va_end(ap);
 
-    result = db->list(db, path);
+    result = DbListArgs(db, path);
     
     ArrayFree(path);
     return result;

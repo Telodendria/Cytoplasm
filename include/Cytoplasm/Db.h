@@ -119,6 +119,13 @@ extern void DbMaxCacheSet(Db *, size_t);
  */
 extern DbRef * DbCreate(Db *, size_t,...);
 
+/** 
+ * Behaves like 
+ * .Fn DbCreate ,
+ * but with an array of strings instead of variadic arguments. 
+ */
+extern DbRef * DbCreateArgs(Db *, Array *);
+
 /**
  * Lock an existing object in the database. This function will fail
  * if the object does not exist. It takes a variable number of C
@@ -129,6 +136,13 @@ extern DbRef * DbCreate(Db *, size_t,...);
  */
 extern DbRef * DbLock(Db *, size_t,...);
 
+/** 
+ * Behaves like 
+ * .Fn DbLock ,
+ * but with an array of strings instead of variadic arguments. 
+ */
+extern DbRef * DbLockArgs(Db *, Array *);
+
 /**
  * Behaves like
  * .Fn DbLock ,
@@ -138,12 +152,26 @@ extern DbRef * DbLock(Db *, size_t,...);
  */
 extern DbRef * DbLockIntent(Db *, DbHint, size_t,...);
 
+/** 
+ * Behaves like 
+ * .Fn DbLockIntent ,
+ * but with an array of strings instead of variadic arguments.
+ */
+extern DbRef * DbLockIntentArgs(Db *, DbHint, Array *);
+
 /**
  * Immediately and permanently remove an object from the database.
  * This function assumes the object is not locked, otherwise undefined
  * behavior will result.
  */
 extern bool DbDelete(Db *, size_t,...);
+
+/** 
+ * Behaves like 
+ * .Fn DbDelete ,
+ * but with an array of strings instead of variadic arguments. 
+ */
+extern bool DbDeleteArgs(Db *, Array *);
 
 /**
  * Unlock an object and return it back to the database. This function
@@ -162,6 +190,13 @@ extern bool DbUnlock(Db *, DbRef *);
  */
 extern bool DbExists(Db *, size_t,...);
 
+/** 
+ * Behaves like 
+ * .Fn DbExists ,
+ * but with an array of strings instead of variadic arguments.
+ */
+extern bool DbExistsArgs(Db *, Array *);
+
 /**
  * List all of the objects at a given path. Unlike the other varargs
  * functions, this one does not take a path to a specific object; it
@@ -173,6 +208,13 @@ extern bool DbExists(Db *, size_t,...);
  * name.
  */
 extern Array * DbList(Db *, size_t,...);
+
+/** 
+ * Behaves like 
+ * .Fn DbList ,
+ * but with an array of strings instead of variadic arguments.
+ */
+extern Array * DbListArgs(Db *, Array *);
 
 /**
  * Free the list returned by 

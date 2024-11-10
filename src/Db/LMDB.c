@@ -128,7 +128,9 @@ LMDBKeyHead(MDB_val key)
         return NULL;
     }
 
-    while ((void *) (end - 1) >= key.mv_data && *(end - 1))
+    /* Doing >= will lead to cases where it is sent straight to the 
+     * start. Don't do that. */
+    while ((void *) (end - 1) > key.mv_data && *(end - 1))
     {
         end--;
     }
