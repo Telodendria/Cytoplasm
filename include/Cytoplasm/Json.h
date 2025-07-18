@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Jordan Bancino <@jordan:bancino.net>
+ * Copyright (C) 2022-2025 Jordan Bancino <@jordan:synapse.telodendria.org>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation files

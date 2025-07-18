@@ -1,4 +1,4 @@
-<p align="center"><img src="https://telodendria.io/user/themes/bancino/images/logo/Cytoplasm.png"></p>
+<p align="center"><img src="https://telodendria.org/user/themes/bancino/images/logo/Cytoplasm.png"></p>
 <h1 align="center">Cytoplasm (<code>libcytoplasm</code>)</h1>
 
 Cytoplasm is a general-purpose C library for creating high-level (particularly networked and multi-threaded) C applications. It allows applications to take advantage of the speed, flexibility, and simplicity of the C programming language, while providing helpful code to allow applications to perform various complex tasks with minimal effort. Cytoplasm provides high-level data structures, a basic logging facility, an HTTP client and server, and more. It also reports memory leaks, which can aid in debugging, particularly on systems that don't have advanced tools like `valgrind`.
@@ -9,7 +9,7 @@ Cytoplasm is extremely opinionated on the way programs using it are written. It 
 
 Cytoplasm is probably not suitable for embedded programming. It makes liberal use of the heap, and while data structures are designed to conserve memory where possible and practical, minimal memory usage is not really a design goal for Cytoplasm, although Cytoplasm takes care not to use any more memory than it absolutely needs. Cytoplasm also wraps a few standard libraries with additional logic and checking. While this ensures better runtime safety, this inevitably adds a little overhead, which may be unsuitable for time- or space-critical tasks.
 
-Originally a part of Telodendria ([Website](https://telodendria.io), [Repo](/Telodendria/Telodendria)), a Matrix homeserver written in C, Cytoplasm was split off into its own project due to the desire of some Telodendria developers to use Telodendria's code in other projects. Cytoplasm is still an official Telodendria project, but it is designed specifically to be distributed and used totally independent of Telodendria.
+Originally a part of Telodendria ([Website](https://telodendria.org), [Repo](/Telodendria/Telodendria)), a Matrix homeserver written in C, Cytoplasm was split off into its own project due to the desire of some Telodendria developers to use Telodendria's code in other projects. Cytoplasm is still an official Telodendria project, but it is designed specifically to be distributed and used totally independent of Telodendria.
 
 The name "Cytoplasm" was chosen for a few reasons. It plays off the precedent set up by the Matrix organization in naming projects after the parts of a neuron. It also speaks to the function of Cytoplasm.  The cytoplasm of a cell is the supporting material. It is what gives the cell its shape, and it facilitates the movement of materials to the other cell parts. Likewise, Cytoplasm aims to provide a support mechanism for C applications that have to perform complex tasks beyond what the C standard library provides.
 
