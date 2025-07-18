@@ -5,13 +5,6 @@ Cytoplasm. It is intended to be updated with every commit that makes a user-faci
 change worth reporting in the change log. As such, it changes frequently between
 releases. Final change log entries are published as [Releases](releases).
 
-## v0.5.0
-
-This is the **Better Strings** update. Cytoplasm now ships its own custom `Str` datatype,
-which is much safer to use than C strings, as it permits `NULL` characters to be present
-in strings. All Cytoplasm APIs now use this `Str` type, which is a major breaking change
-for this release.
-
 ## v0.4.1
 
 Cytoplasm is now a C99 library! Upgrading from C89 to C99 makes Cytoplasm more portable

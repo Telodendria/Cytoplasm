@@ -34,97 +34,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-struct Str
-{
-    size_t len;
-    size_t size;
-    uint8_t *buf;
-};
-
-Str *StrCreate(uint8_t *initialBuf, size_t len)
-{
-    Str *str = Malloc(sizeof(Str));
-    if (!str)
-    {
-        return NULL;
-    }
-
-    if (initialBuf)
-    {
-        str->buf = Malloc(len * sizeof(uint8_t));
-        if (!str->buf)
-        {
-            Free(str);
-            return NULL;
-        }
-
-        memcpy(str->buf, initialBuf, len);
-
-        str->len = len;
-        str->size = len;
-    }
-    else
-    {
-        str->buf = NULL;
-        str->len = 0;
-        str->size = 0;
-    }
-
-    return str;
-}
-
-void StrFree(Str *str)
-{
-    if (!str)
-    {
-        return;
-    }
-
-    Free(str->buf);
-    Free(str);
-}
-
-size_t StrLen(Str *str)
-{
-    if (!str)
-    {
-        return 0;
-    }
-
-    return str->len;
-}
-
-size_t StrSize(Str *str)
-{
-    if (!str)
-    {
-        return 0;
-    }
-
-    // Size of the string metadata and allocated buffer
-    // space.
-    return sizeof(Str) + str->size;
-}
-
-char * StrToC(Str *str)
-{
-    if (!str)
-    {
-        return NULL;
-    }
-
-    char *cStr = Malloc((str->len + 1) * sizeof(char));
-    if (!cStr)
-    {
-        return NULL;
-    }
-
-    memcpy(cStr, str->buf, str->len);
-    cStr[str->len] = '\0';
-    return cStr;
-
-}
-
 uint32_t
 StrUtf16Decode(uint16_t high, uint16_t low)
 {
@@ -145,59 +54,75 @@ StrUtf16Decode(uint16_t high, uint16_t low)
     }
 }
 
-Str *
+char *
 StrUtf8Encode(uint32_t codepoint)
 {
-    uint8_t str[5];
+    char *str;
+
+    str = Malloc(5 * sizeof(char));
+    if (!str)
+    {
+        return NULL;
+    }
 
     if (codepoint <= 0x7F && codepoint != 0)    /* Plain ASCII */
     {
-        str[0] = (uint8_t) codepoint;
+        str[0] = (char) codepoint;
         str[1] = '\0';
     }
     else if (codepoint <= 0x07FF)  /* 2-byte */
     {
-        str[0] = (uint8_t) (((codepoint >> 6) & 0x1F) | 0xC0);
-        str[1] = (uint8_t) (((codepoint >> 0) & 0x3F) | 0x80);
+        str[0] = (char) (((codepoint >> 6) & 0x1F) | 0xC0);
+        str[1] = (char) (((codepoint >> 0) & 0x3F) | 0x80);
         str[2] = '\0';
     }
     else if (codepoint <= 0xFFFF)  /* 3-byte */
     {
-        str[0] = (uint8_t) (((codepoint >> 12) & 0x0F) | 0xE0);
-        str[1] = (uint8_t) (((codepoint >> 6) & 0x3F) | 0x80);
-        str[2] = (uint8_t) (((codepoint >> 0) & 0x3F) | 0x80);
+        str[0] = (char) (((codepoint >> 12) & 0x0F) | 0xE0);
+        str[1] = (char) (((codepoint >> 6) & 0x3F) | 0x80);
+        str[2] = (char) (((codepoint >> 0) & 0x3F) | 0x80);
         str[3] = '\0';
     }
     else if (codepoint <= 0x10FFFF)/* 4-byte */
     {
-        str[0] = (uint8_t) (((codepoint >> 18) & 0x07) | 0xF0);
-        str[1] = (uint8_t) (((codepoint >> 12) & 0x3F) | 0x80);
-        str[2] = (uint8_t) (((codepoint >> 6) & 0x3F) | 0x80);
-        str[3] = (uint8_t) (((codepoint >> 0) & 0x3F) | 0x80);
+        str[0] = (char) (((codepoint >> 18) & 0x07) | 0xF0);
+        str[1] = (char) (((codepoint >> 12) & 0x3F) | 0x80);
+        str[2] = (char) (((codepoint >> 6) & 0x3F) | 0x80);
+        str[3] = (char) (((codepoint >> 0) & 0x3F) | 0x80);
         str[4] = '\0';
     }
     else
     {
         /* Send replacement character */
-        str[0] = (uint8_t) 0xEF;
-        str[1] = (uint8_t) 0xBF;
-        str[2] = (uint8_t) 0xBD;
+        str[0] = (char) 0xEF;
+        str[1] = (char) 0xBF;
+        str[2] = (char) 0xBD;
         str[3] = '\0';
     }
 
-    Str *ret = StrCreate(str, strlen((char *)str));
-    return ret;
+    return str;
 }
 
-Str *
-StrDuplicate(Str *inStr)
+char *
+StrDuplicate(const char *inStr)
 {
+    size_t len;
+    char *outStr;
+
     if (!inStr)
     {
         return NULL;
     }
 
-    Str *outStr = StrCreate(inStr->buf, inStr->len);
+    len = strlen(inStr);
+    outStr = Malloc(len + 1);      /* For the null terminator */
+    if (!outStr)
+    {
+        return NULL;
+    }
+
+    strncpy(outStr, inStr, len + 1);
+
     return outStr;
 }
 

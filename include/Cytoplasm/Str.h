@@ -43,22 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define StrEmpty() StrCreate(NULL, 0)
-#define S(str) StrCreate((uint8_t) (str), strlen(str));
-
-/**
- * The opaque structure which represents a string.
- */
-typedef struct Str Str;
-
-extern Str *StrCreate(uint8_t *initialBuf, size_t len);
-
-extern void StrFree(Str *str);
-
-extern size_t StrLen(Str *str);
-extern size_t StrSize(Str *str);
-extern char *StrToC(Str *str);
-
 /**
  * Convert UTF-16 into a Unicode codepoint.
  */
@@ -69,7 +53,7 @@ extern uint32_t StrUtf16Decode(uint16_t, uint16_t);
  * between 1 and 4 bytes. The string buffer is allocated on the heap,
  * so it should be freed when it is no longer needed.
  */
-extern Str * StrUtf8Encode(uint32_t);
+extern char * StrUtf8Encode(uint32_t);
 
 /**
  * Duplicate a null-terminated string, returning a new string on the
@@ -77,7 +61,7 @@ extern Str * StrUtf8Encode(uint32_t);
  * to store for long amounts of time, even perhaps after the original
  * string is gone.
  */
-extern Str * StrDuplicate(Str *);
+extern char * StrDuplicate(const char *);
 
 /**
  * Extract part of a null-terminated string, returning a new string on
