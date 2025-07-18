@@ -54,7 +54,7 @@ Base64EncodedSize(size_t inputSize)
 }
 
 size_t
-Base64DecodedSize(const char *base64, size_t len)
+Base64DecodedSize(Str *base64)
 {
     size_t ret;
     size_t i;

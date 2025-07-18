@@ -44,7 +44,7 @@
 #include <stdbool.h>
 
 #define StrEmpty() StrCreate(NULL, 0)
-#define S(str) StrCreate((uint8_t) (str), strlen(str));
+#define S(str) StrCreate((uint8_t) (str), strlen(str))
 
 /**
  * The opaque structure which represents a string.
@@ -58,6 +58,8 @@ extern void StrFree(Str *str);
 extern size_t StrLen(Str *str);
 extern size_t StrSize(Str *str);
 extern char *StrToC(Str *str);
+
+extern uint8_t StrByteAt(Str *str, size_t i);
 
 /**
  * Convert UTF-16 into a Unicode codepoint.

@@ -41,6 +41,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <Str.h>
+
 /**
  * This function computes the amount of bytes needed to store a message
  * of the specified number of bytes as base64.
@@ -55,7 +57,7 @@ extern size_t
  * to accurately compute the size.
  */
 extern size_t
- Base64DecodedSize(const char *, size_t);
+ Base64DecodedSize(Str *);
 
 /**
  * Encode the specified number of bytes from the specified buffer as
@@ -64,8 +66,8 @@ extern size_t
  * .Fn Free ,
  * or NULL if a memory allocation error ocurred.
  */
-extern char *
- Base64Encode(const char *, size_t);
+extern Str *
+ Base64Encode(Str *);
 
 /**
  * Decode the specified number of bytes from the specified buffer of
@@ -74,8 +76,8 @@ extern char *
  * .Fn Free ,
  * or NULL if a memory allocation error occured.
  */
-extern char *
- Base64Decode(const char *, size_t);
+extern Str *
+ Base64Decode(Str *);
 
 /**
  * Remove the padding from a specified base64 string. This function
@@ -83,8 +85,8 @@ extern char *
  * because it cannot fail. If the passed pointer is invalid, the
  * behavior is undefined.
  */
-extern void
- Base64Unpad(char *, size_t);
+extern Str *
+ Base64Unpad(Str *);
 
 /**
  * Add padding to an unpadded base64 string. This function takes a
@@ -94,7 +96,7 @@ extern void
  * this means it will only fail if a bigger string is necessary, but it
  * could not be automatically allocated on the heap.
  */
-extern bool
- Base64Pad(char **, size_t);
+extern Str *
+ Base64Pad(Str *);
 
 #endif                             /* CYTOPLASM_BASE64_H */
